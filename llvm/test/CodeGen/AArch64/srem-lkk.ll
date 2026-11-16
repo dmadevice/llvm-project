@@ -4,13 +4,13 @@
 define i32 @fold_srem_positive_odd(i32 %x) {
 ; CHECK-LABEL: fold_srem_positive_odd:
 ; CHECK:       // %bb.0:
-; CHECK-NEXT:    mov w8, #37253 // =0x9185
 ; CHECK-NEXT:    // kill: def $w0 killed $w0 def $x0
-; CHECK-NEXT:    movk w8, #44150, lsl #16
-; CHECK-NEXT:    smull x8, w0, w8
-; CHECK-NEXT:    add x8, x0, x8, lsr #32
-; CHECK-NEXT:    asr w9, w8, #6
-; CHECK-NEXT:    add w8, w9, w8, lsr #31
+; CHECK-NEXT:    sxtw x8, w0
+; CHECK-NEXT:    mov w9, #37253 // =0x9185
+; CHECK-NEXT:    movk w9, #44150, lsl #16
+; CHECK-NEXT:    mul x8, x8, x9
+; CHECK-NEXT:    lsr w9, w0, #31
+; CHECK-NEXT:    add x8, x9, x8, asr #38
 ; CHECK-NEXT:    mov w9, #95 // =0x5f
 ; CHECK-NEXT:    msub w0, w8, w9, w0
 ; CHECK-NEXT:    ret
@@ -71,13 +71,13 @@ define i32 @fold_srem_negative_even(i32 %x) {
 define i32 @combine_srem_sdiv(i32 %x) {
 ; CHECK-LABEL: combine_srem_sdiv:
 ; CHECK:       // %bb.0:
-; CHECK-NEXT:    mov w8, #37253 // =0x9185
 ; CHECK-NEXT:    // kill: def $w0 killed $w0 def $x0
-; CHECK-NEXT:    movk w8, #44150, lsl #16
-; CHECK-NEXT:    smull x8, w0, w8
-; CHECK-NEXT:    add x8, x0, x8, lsr #32
-; CHECK-NEXT:    asr w9, w8, #6
-; CHECK-NEXT:    add w8, w9, w8, lsr #31
+; CHECK-NEXT:    sxtw x8, w0
+; CHECK-NEXT:    mov w9, #37253 // =0x9185
+; CHECK-NEXT:    movk w9, #44150, lsl #16
+; CHECK-NEXT:    mul x8, x8, x9
+; CHECK-NEXT:    lsr w9, w0, #31
+; CHECK-NEXT:    add x8, x9, x8, asr #38
 ; CHECK-NEXT:    mov w9, #95 // =0x5f
 ; CHECK-NEXT:    msub w9, w8, w9, w0
 ; CHECK-NEXT:    add w0, w9, w8

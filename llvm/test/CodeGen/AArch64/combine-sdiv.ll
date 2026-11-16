@@ -1409,13 +1409,12 @@ define i5 @combine_i5_sdiv_const7(i5 %x) {
 ; CHECK-SD:       // %bb.0:
 ; CHECK-SD-NEXT:    // kill: def $w0 killed $w0 def $x0
 ; CHECK-SD-NEXT:    sbfx x8, x0, #0, #5
-; CHECK-SD-NEXT:    mov x9, #-56173 // =0xffffffffffff2493
-; CHECK-SD-NEXT:    movk x9, #37449, lsl #16
-; CHECK-SD-NEXT:    smull x8, w8, w9
-; CHECK-SD-NEXT:    sbfx w9, w0, #0, #5
-; CHECK-SD-NEXT:    add x8, x9, x8, lsr #32
-; CHECK-SD-NEXT:    asr w9, w8, #2
-; CHECK-SD-NEXT:    add w0, w9, w8, lsr #31
+; CHECK-SD-NEXT:    mov w9, #9363 // =0x2493
+; CHECK-SD-NEXT:    movk w9, #37449, lsl #16
+; CHECK-SD-NEXT:    mul x8, x8, x9
+; CHECK-SD-NEXT:    ubfx w9, w0, #4, #1
+; CHECK-SD-NEXT:    add x0, x9, x8, asr #34
+; CHECK-SD-NEXT:    // kill: def $w0 killed $w0 killed $x0
 ; CHECK-SD-NEXT:    ret
 ;
 ; CHECK-GI-LABEL: combine_i5_sdiv_const7:
@@ -1548,13 +1547,14 @@ define i16 @combine_i16_sdiv_const100(i16 %x) {
 define i32 @combine_i32_sdiv_const7(i32 %x) {
 ; CHECK-SD-LABEL: combine_i32_sdiv_const7:
 ; CHECK-SD:       // %bb.0:
-; CHECK-SD-NEXT:    mov w8, #9363 // =0x2493
 ; CHECK-SD-NEXT:    // kill: def $w0 killed $w0 def $x0
-; CHECK-SD-NEXT:    movk w8, #37449, lsl #16
-; CHECK-SD-NEXT:    smull x8, w0, w8
-; CHECK-SD-NEXT:    add x8, x0, x8, lsr #32
-; CHECK-SD-NEXT:    asr w9, w8, #2
-; CHECK-SD-NEXT:    add w0, w9, w8, lsr #31
+; CHECK-SD-NEXT:    sxtw x8, w0
+; CHECK-SD-NEXT:    mov w9, #9363 // =0x2493
+; CHECK-SD-NEXT:    movk w9, #37449, lsl #16
+; CHECK-SD-NEXT:    mul x8, x8, x9
+; CHECK-SD-NEXT:    lsr w9, w0, #31
+; CHECK-SD-NEXT:    add x0, x9, x8, asr #34
+; CHECK-SD-NEXT:    // kill: def $w0 killed $w0 killed $x0
 ; CHECK-SD-NEXT:    ret
 ;
 ; CHECK-GI-LABEL: combine_i32_sdiv_const7:

@@ -385,15 +385,14 @@ define i32 @sdiv_constant_add_srai(i32 %a) nounwind {
 ;
 ; RV64-LABEL: sdiv_constant_add_srai:
 ; RV64:       # %bb.0:
-; RV64-NEXT:    lui a1, 599186
+; RV64-NEXT:    lui a1, 299593
+; RV64-NEXT:    slli a1, a1, 1
 ; RV64-NEXT:    sext.w a2, a0
 ; RV64-NEXT:    addi a1, a1, 1171
 ; RV64-NEXT:    mul a1, a2, a1
-; RV64-NEXT:    srli a1, a1, 32
+; RV64-NEXT:    srai a1, a1, 34
+; RV64-NEXT:    srliw a0, a0, 31
 ; RV64-NEXT:    add a0, a1, a0
-; RV64-NEXT:    srliw a1, a0, 31
-; RV64-NEXT:    sraiw a0, a0, 2
-; RV64-NEXT:    add a0, a0, a1
 ; RV64-NEXT:    ret
   %1 = sdiv i32 %a, 7
   ret i32 %1
