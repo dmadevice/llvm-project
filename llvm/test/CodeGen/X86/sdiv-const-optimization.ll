@@ -397,14 +397,12 @@ define i32 @sdiv_by_8(i32 %x) nounwind {
 define i32 @sdiv_by_minus_7(i32 %x) nounwind {
 ; X64-LABEL: sdiv_by_minus_7:
 ; X64:       # %bb.0:
-; X64-NEXT:    movslq %edi, %rcx
-; X64-NEXT:    imulq $1840700269, %rcx, %rax # imm = 0x6DB6DB6D
-; X64-NEXT:    shrq $32, %rax
+; X64-NEXT:    movslq %edi, %rax
+; X64-NEXT:    movl $2454267027, %ecx # imm = 0x92492493
+; X64-NEXT:    imulq %rax, %rcx
+; X64-NEXT:    sarq $34, %rcx
+; X64-NEXT:    sarl $31, %eax
 ; X64-NEXT:    subl %ecx, %eax
-; X64-NEXT:    movl %eax, %ecx
-; X64-NEXT:    shrl $31, %ecx
-; X64-NEXT:    sarl $2, %eax
-; X64-NEXT:    addl %ecx, %eax
 ; X64-NEXT:    # kill: def $eax killed $eax killed $rax
 ; X64-NEXT:    retq
 ;
@@ -427,14 +425,12 @@ define i32 @sdiv_by_minus_7(i32 %x) nounwind {
 define i32 @sdiv_by_minus_3(i32 %x) nounwind {
 ; X64-LABEL: sdiv_by_minus_3:
 ; X64:       # %bb.0:
-; X64-NEXT:    movslq %edi, %rcx
-; X64-NEXT:    imulq $1431655765, %rcx, %rax # imm = 0x55555555
-; X64-NEXT:    shrq $32, %rax
+; X64-NEXT:    movslq %edi, %rax
+; X64-NEXT:    movl $2863311531, %ecx # imm = 0xAAAAAAAB
+; X64-NEXT:    imulq %rax, %rcx
+; X64-NEXT:    sarq $33, %rcx
+; X64-NEXT:    sarl $31, %eax
 ; X64-NEXT:    subl %ecx, %eax
-; X64-NEXT:    movl %eax, %ecx
-; X64-NEXT:    shrl $31, %ecx
-; X64-NEXT:    sarl %eax
-; X64-NEXT:    addl %ecx, %eax
 ; X64-NEXT:    # kill: def $eax killed $eax killed $rax
 ; X64-NEXT:    retq
 ;
@@ -457,14 +453,12 @@ define i32 @sdiv_by_minus_3(i32 %x) nounwind {
 define i32 @sdiv_by_minus_86400(i32 %x) nounwind {
 ; X64-LABEL: sdiv_by_minus_86400:
 ; X64:       # %bb.0:
-; X64-NEXT:    movslq %edi, %rcx
-; X64-NEXT:    imulq $1037155065, %rcx, %rax # imm = 0x3DD1BAF9
-; X64-NEXT:    shrq $32, %rax
+; X64-NEXT:    movslq %edi, %rax
+; X64-NEXT:    movl $3257812231, %ecx # imm = 0xC22E4507
+; X64-NEXT:    imulq %rax, %rcx
+; X64-NEXT:    sarq $48, %rcx
+; X64-NEXT:    sarl $31, %eax
 ; X64-NEXT:    subl %ecx, %eax
-; X64-NEXT:    movl %eax, %ecx
-; X64-NEXT:    shrl $31, %ecx
-; X64-NEXT:    sarl $16, %eax
-; X64-NEXT:    addl %ecx, %eax
 ; X64-NEXT:    # kill: def $eax killed $eax killed $rax
 ; X64-NEXT:    retq
 ;
@@ -488,14 +482,13 @@ define i32 @srem_by_minus_60(i32 %x) nounwind {
 ; X64-LABEL: srem_by_minus_60:
 ; X64:       # %bb.0:
 ; X64-NEXT:    movslq %edi, %rax
-; X64-NEXT:    imulq $2004318071, %rax, %rcx # imm = 0x77777777
-; X64-NEXT:    shrq $32, %rcx
-; X64-NEXT:    subl %eax, %ecx
-; X64-NEXT:    movl %ecx, %edx
-; X64-NEXT:    shrl $31, %edx
-; X64-NEXT:    sarl $5, %ecx
-; X64-NEXT:    addl %edx, %ecx
-; X64-NEXT:    imull $-60, %ecx, %ecx
+; X64-NEXT:    movl $2290649225, %ecx # imm = 0x88888889
+; X64-NEXT:    imulq %rax, %rcx
+; X64-NEXT:    sarq $37, %rcx
+; X64-NEXT:    movl %eax, %edx
+; X64-NEXT:    sarl $31, %edx
+; X64-NEXT:    subl %ecx, %edx
+; X64-NEXT:    imull $-60, %edx, %ecx
 ; X64-NEXT:    subl %ecx, %eax
 ; X64-NEXT:    # kill: def $eax killed $eax killed $rax
 ; X64-NEXT:    retq
@@ -523,28 +516,20 @@ define i16 @sdiv_i16_by_minus_60(i16 %x) nounwind {
 ; X64-LABEL: sdiv_i16_by_minus_60:
 ; X64:       # %bb.0:
 ; X64-NEXT:    movswl %di, %eax
-; X64-NEXT:    imull $30583, %eax, %eax # imm = 0x7777
-; X64-NEXT:    shrl $16, %eax
-; X64-NEXT:    subl %edi, %eax
-; X64-NEXT:    movzwl %ax, %ecx
-; X64-NEXT:    movswl %cx, %eax
-; X64-NEXT:    shrl $15, %ecx
-; X64-NEXT:    sarl $5, %eax
-; X64-NEXT:    addl %ecx, %eax
+; X64-NEXT:    imull $34953, %eax, %ecx # imm = 0x8889
+; X64-NEXT:    sarl $31, %eax
+; X64-NEXT:    sarl $21, %ecx
+; X64-NEXT:    subl %ecx, %eax
 ; X64-NEXT:    # kill: def $ax killed $ax killed $eax
 ; X64-NEXT:    retq
 ;
 ; X86-LABEL: sdiv_i16_by_minus_60:
 ; X86:       # %bb.0:
 ; X86-NEXT:    movswl {{[0-9]+}}(%esp), %eax
-; X86-NEXT:    imull $30583, %eax, %ecx # imm = 0x7777
-; X86-NEXT:    shrl $16, %ecx
-; X86-NEXT:    subl %eax, %ecx
-; X86-NEXT:    movzwl %cx, %ecx
-; X86-NEXT:    movswl %cx, %eax
-; X86-NEXT:    shrl $15, %ecx
-; X86-NEXT:    sarl $5, %eax
-; X86-NEXT:    addl %ecx, %eax
+; X86-NEXT:    imull $34953, %eax, %ecx # imm = 0x8889
+; X86-NEXT:    sarl $31, %eax
+; X86-NEXT:    sarl $21, %ecx
+; X86-NEXT:    subl %ecx, %eax
 ; X86-NEXT:    # kill: def $ax killed $ax killed $eax
 ; X86-NEXT:    retl
   %div = sdiv i16 %x, -60
@@ -554,27 +539,23 @@ define i16 @sdiv_i16_by_minus_60(i16 %x) nounwind {
 define i8 @sdiv_i8_by_minus_7(i8 %x) nounwind {
 ; X64-LABEL: sdiv_i8_by_minus_7:
 ; X64:       # %bb.0:
-; X64-NEXT:    movsbl %dil, %eax
-; X64-NEXT:    imull $109, %eax, %eax
-; X64-NEXT:    shrl $8, %eax
-; X64-NEXT:    subb %dil, %al
-; X64-NEXT:    movl %eax, %ecx
-; X64-NEXT:    shrb $7, %cl
-; X64-NEXT:    sarb $2, %al
-; X64-NEXT:    addb %cl, %al
+; X64-NEXT:    movl %edi, %eax
+; X64-NEXT:    movsbl %al, %ecx
+; X64-NEXT:    sarb $7, %al
+; X64-NEXT:    imull $147, %ecx, %ecx
+; X64-NEXT:    shrl $10, %ecx
+; X64-NEXT:    subb %cl, %al
 ; X64-NEXT:    # kill: def $al killed $al killed $eax
 ; X64-NEXT:    retq
 ;
 ; X86-LABEL: sdiv_i8_by_minus_7:
 ; X86:       # %bb.0:
-; X86-NEXT:    movsbl {{[0-9]+}}(%esp), %ecx
-; X86-NEXT:    imull $109, %ecx, %eax
-; X86-NEXT:    subb %cl, %ah
-; X86-NEXT:    movb %ah, %cl
-; X86-NEXT:    shrb $7, %cl
-; X86-NEXT:    sarb $2, %ah
-; X86-NEXT:    addb %cl, %ah
-; X86-NEXT:    movb %ah, %al
+; X86-NEXT:    movsbl {{[0-9]+}}(%esp), %eax
+; X86-NEXT:    imull $147, %eax, %ecx
+; X86-NEXT:    # kill: def $al killed $al killed $eax
+; X86-NEXT:    sarb $7, %al
+; X86-NEXT:    shrl $10, %ecx
+; X86-NEXT:    subb %cl, %al
 ; X86-NEXT:    retl
   %div = sdiv i8 %x, -7
   ret i8 %div

@@ -7104,15 +7104,16 @@ SDValue TargetLowering::BuildSDIV(SDNode *N, SelectionDAG &DAG,
 
   // If the target has no native MULHS for VT, the high multiply ends up as a
   // widened multiply anyway (see DAGCombiner::visitMULHS). In that case, if
-  // the divisor d > 0 is not a power of two and its magic is negative (i.e.
-  // the numerator would have to be added back), use the exact
-  // (EltBits + 1)-bit magic with a signed multiply in a type at least twice as
-  // wide instead:
-  //   s = EltBits - 1 + ceil(log2(d)), c = ceil(2^s / d)
+  // |d| is not a power of two and the magic for d requires the numerator to be
+  // added (d > 0, magic < 0) or subtracted (d < 0, magic > 0), use the exact
+  // (EltBits + 1)-bit magic for |d| with a signed multiply in a type at least
+  // twice as wide instead:
+  //   s = EltBits - 1 + ceil(log2(|d|)), c = ceil(2^s / |d|)
   //   t = trunc((sext(x) * c) >>s s), 2^(EltBits-1) < c < 2^EltBits
-  //   x / d = t + (x >>u (EltBits - 1))
+  //   x / d = t + (x >>u (EltBits - 1))   if d > 0
+  //   x / d = (x >>s (EltBits - 1)) - t   if d < 0, since x / d = -(x / |d|)
   // sext(x) * c cannot overflow since |x| <= 2^(EltBits-1). This removes the
-  // numerator add-back and computes the sign fixup from x, off the multiply's
+  // numerator add/sub and computes the sign fixup from x, off the multiply's
   // dependency chain.
   // Ref: D. Lemire, C. Bartlett, O. Kaser, "Integer division by constants:
   // optimal bounds", Heliyon, 2021.
@@ -7123,7 +7124,8 @@ SDValue TargetLowering::BuildSDIV(SDNode *N, SelectionDAG &DAG,
       if (!Divisor.isZero() && !AbsDivisor.isPowerOf2()) {
         APInt Magic = SignedDivisionByConstantInfo::get(Divisor).Magic;
         bool NeedsNumeratorFixup =
-            Divisor.isStrictlyPositive() && Magic.isNegative();
+            (Divisor.isStrictlyPositive() && Magic.isNegative()) ||
+            (Divisor.isNegative() && Magic.isStrictlyPositive());
         // Find the narrowest legal integer type at least twice as wide as VT
         // with a legal multiply that the target is happy to compute in.
         EVT WideVT;
@@ -7155,20 +7157,25 @@ SDValue TargetLowering::BuildSDIV(SDNode *N, SelectionDAG &DAG,
           T = DAG.getNode(ISD::TRUNCATE, dl, VT, T);
           Created.push_back(T.getNode());
 
-          // Add 1 if the numerator is negative. Take the sign bit from the
-          // sign-extended numerator if VT would have to be promoted anyway.
+          // Round towards zero: x / |d| = t + 1 and x / -|d| = -1 - t if x is
+          // negative. Take the sign of x from the sign-extended numerator if VT
+          // would have to be promoted anyway.
+          bool IsNeg = Divisor.isNegative();
+          unsigned SignOpc = IsNeg ? ISD::SRA : ISD::SRL;
           SDValue Sign;
-          if (isTypeLegal(VT) && isTypeDesirableForOp(ISD::SRL, VT)) {
-            Sign = DAG.getNode(ISD::SRL, dl, VT, N0,
+          if (isTypeLegal(VT) && isTypeDesirableForOp(SignOpc, VT)) {
+            Sign = DAG.getNode(SignOpc, dl, VT, N0,
                                DAG.getShiftAmountConstant(EltBits - 1, VT, dl));
           } else {
             Sign = DAG.getNode(
-                ISD::SRL, dl, WideVT, WideN0,
+                SignOpc, dl, WideVT, WideN0,
                 DAG.getShiftAmountConstant(WideBits - 1, WideVT, dl));
             Created.push_back(Sign.getNode());
             Sign = DAG.getNode(ISD::TRUNCATE, dl, VT, Sign);
           }
           Created.push_back(Sign.getNode());
+          if (IsNeg)
+            return DAG.getNode(ISD::SUB, dl, VT, Sign, T);
           return DAG.getNode(ISD::ADD, dl, VT, T, Sign);
         }
       }
