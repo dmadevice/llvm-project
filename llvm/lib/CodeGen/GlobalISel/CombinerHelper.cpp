@@ -5859,9 +5859,22 @@ MachineInstr *CombinerHelper::buildSDivOrSRemUsingMul(MachineInstr &MI) const {
                             MIB.buildConstant(WideShiftAmtTy, ShiftAmt));
           T = MIB.buildTrunc(Ty, T);
 
-          // Round towards zero: add 1 if x is negative. Take the sign of x from
-          // the sign-extended numerator if Ty would have to be widened anyway.
-          unsigned SignOpc = TargetOpcode::G_LSHR;
+          // Round towards zero. For d < 0, x / d = -(x / |d|), computed as
+          // (x >>s (EltBits - 1)) - t, unless the quotient feeds a G_ADD/G_SUB,
+          // in which case the whole quotient is negated so that it folds into
+          // a single G_SUB/G_ADD (see TargetLowering::BuildSDIV).
+          bool IsNeg = Divisor.isNegative();
+          bool NegateQuotient = false;
+          if (IsNeg && Opcode == TargetOpcode::G_SDIV &&
+              MRI.hasOneNonDBGUse(Dst)) {
+            unsigned UseOpc = MRI.use_instr_nodbg_begin(Dst)->getOpcode();
+            NegateQuotient =
+                UseOpc == TargetOpcode::G_ADD || UseOpc == TargetOpcode::G_SUB;
+          }
+          // Take the sign of x from the sign-extended numerator if Ty would
+          // have to be widened anyway.
+          unsigned SignOpc = IsNeg && !NegateQuotient ? TargetOpcode::G_ASHR
+                                                      : TargetOpcode::G_LSHR;
           Register Sign;
           if (isLegal({TargetOpcode::G_ADD, {Ty}})) {
             Sign = MIB.buildInstr(SignOpc, {Ty},
@@ -5874,9 +5887,10 @@ MachineInstr *CombinerHelper::buildSDivOrSRemUsingMul(MachineInstr &MI) const {
                 {WideLHS, MIB.buildConstant(WideShiftAmtTy, WideBits - 1)});
             Sign = MIB.buildTrunc(Ty, WideSign).getReg(0);
           }
-          // For d < 0, negate the quotient (see TargetLowering::BuildSDIV).
-          MachineInstrBuilder Res = MIB.buildAdd(Ty, T, Sign);
-          if (Divisor.isNegative())
+          MachineInstrBuilder Res = IsNeg && !NegateQuotient
+                                        ? MIB.buildSub(Ty, Sign, T)
+                                        : MIB.buildAdd(Ty, T, Sign);
+          if (NegateQuotient)
             Res = MIB.buildSub(Ty, MIB.buildConstant(Ty, 0), Res);
           if (Opcode == TargetOpcode::G_SREM) {
             auto Prod = MIB.buildMul(Ty, Res, RHS);

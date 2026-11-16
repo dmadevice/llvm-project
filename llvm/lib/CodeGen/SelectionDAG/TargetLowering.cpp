@@ -7163,25 +7163,35 @@ SDValue TargetLowering::BuildSDIV(SDNode *N, SelectionDAG &DAG,
           T = DAG.getNode(ISD::TRUNCATE, dl, VT, T);
           Created.push_back(T.getNode());
 
-          // Round towards zero: add 1 if x is negative. Take the sign of x from
-          // the sign-extended numerator if VT would have to be promoted anyway.
+          // Round towards zero. For d < 0, x / d = -(x / |d|), which is
+          // computed as (x >>s (EltBits - 1)) - t. If the quotient feeds an
+          // ADD/SUB (e.g. an accumulation) the generic combines would
+          // reassociate that so both terms end up on the accumulator's
+          // dependency chain; in that case negate t + (x >>u (EltBits - 1))
+          // instead, which folds into a single SUB/ADD.
+          bool IsNeg = Divisor.isNegative();
+          bool NegateQuotient = IsNeg && N->hasOneUse() &&
+                                (N->user_begin()->getOpcode() == ISD::ADD ||
+                                 N->user_begin()->getOpcode() == ISD::SUB);
+          unsigned SignOpc = IsNeg && !NegateQuotient ? ISD::SRA : ISD::SRL;
+          // Take the sign of x from the sign-extended numerator if VT would
+          // have to be promoted anyway.
           SDValue Sign;
-          if (isTypeLegal(VT) && isTypeDesirableForOp(ISD::SRL, VT)) {
-            Sign = DAG.getNode(ISD::SRL, dl, VT, N0,
+          if (isTypeLegal(VT) && isTypeDesirableForOp(SignOpc, VT)) {
+            Sign = DAG.getNode(SignOpc, dl, VT, N0,
                                DAG.getShiftAmountConstant(EltBits - 1, VT, dl));
           } else {
             Sign = DAG.getNode(
-                ISD::SRL, dl, WideVT, WideN0,
+                SignOpc, dl, WideVT, WideN0,
                 DAG.getShiftAmountConstant(WideBits - 1, WideVT, dl));
             Created.push_back(Sign.getNode());
             Sign = DAG.getNode(ISD::TRUNCATE, dl, VT, Sign);
           }
           Created.push_back(Sign.getNode());
-          // For d < 0, negate the quotient. Negating (rather than computing
-          // (x >>s (EltBits - 1)) - t) keeps the result an ADD/SUB of a single
-          // value, so that e.g. reductions can fold it into a single SUB.
+          if (IsNeg && !NegateQuotient)
+            return DAG.getNode(ISD::SUB, dl, VT, Sign, T);
           SDValue Q = DAG.getNode(ISD::ADD, dl, VT, T, Sign);
-          if (Divisor.isNegative()) {
+          if (NegateQuotient) {
             Created.push_back(Q.getNode());
             return DAG.getNegative(Q, dl, VT);
           }
