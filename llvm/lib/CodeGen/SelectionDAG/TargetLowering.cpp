@@ -7099,6 +7099,54 @@ SDValue TargetLowering::BuildSDIV(SDNode *N, SelectionDAG &DAG,
   if (!HasMULHS && !HasSMUL_LOHI && MulVT == EVT())
     return SDValue();
 
+  SDValue N0 = N->getOperand(0);
+  SDValue N1 = N->getOperand(1);
+
+  // If the target has no native i32 MULHS, the i32 high multiply ends up as a
+  // widened i64 multiply anyway (see DAGCombiner::visitMULHS). In that case, if
+  // the divisor d > 0 is not a power of two and its 32-bit magic is negative
+  // (i.e. the numerator would have to be added back), use the exact 33-bit
+  // magic with a signed i64 multiply instead:
+  //   s = 31 + ceil(log2(d)), c = ceil(2^s / d), 2^31 < c < 2^32
+  //   x / d = trunc((sext(x) * c) >>s s) + (x >>u 31)
+  // sext(x) * c cannot overflow since |x| <= 2^31. This removes the add-back
+  // and computes the sign fixup from x, off the multiply's dependency chain.
+  // Ref: D. Lemire, C. Bartlett, O. Kaser, "Integer division by constants:
+  // optimal bounds", Heliyon, 2021.
+  const EVT WideSVT = MVT::i64;
+  if (VT == MVT::i32 && !HasMULHS && isOperationLegal(ISD::MUL, WideSVT)) {
+    if (auto *C = dyn_cast<ConstantSDNode>(N1)) {
+      APInt Divisor = C->getAPIntValue().trunc(EltBits);
+      if (Divisor.isStrictlyPositive() && !Divisor.isPowerOf2() &&
+          SignedDivisionByConstantInfo::get(Divisor).Magic.isNegative()) {
+        unsigned WideBits = WideSVT.getSizeInBits();
+        unsigned ShiftAmt = EltBits - 1 + Divisor.ceilLogBase2();
+        APInt Magic =
+            APIntOps::RoundingUDiv(APInt::getOneBitSet(WideBits, ShiftAmt),
+                                   Divisor.zext(WideBits), APInt::Rounding::UP);
+        assert(Magic.ult(APInt::getOneBitSet(WideBits, EltBits)) &&
+               "Expected the magic to fit in EltBits + 1 signed bits");
+
+        SDValue Q = DAG.getNode(ISD::SIGN_EXTEND, dl, WideSVT, N0);
+        Q = DAG.getNode(ISD::MUL, dl, WideSVT, Q,
+                        DAG.getConstant(Magic, dl, WideSVT));
+        Created.push_back(Q.getNode());
+        Q = DAG.getNode(ISD::SRA, dl, WideSVT, Q,
+                        DAG.getShiftAmountConstant(ShiftAmt, WideSVT, dl));
+        Created.push_back(Q.getNode());
+        Q = DAG.getNode(ISD::TRUNCATE, dl, VT, Q);
+        Created.push_back(Q.getNode());
+
+        // Add 1 if the numerator is negative.
+        SDValue T =
+            DAG.getNode(ISD::SRL, dl, VT, N0,
+                        DAG.getShiftAmountConstant(EltBits - 1, VT, dl));
+        Created.push_back(T.getNode());
+        return DAG.getNode(ISD::ADD, dl, VT, Q, T);
+      }
+    }
+  }
+
   // If we're after type legalization and SVT is not legal, use the
   // promoted type for creating constants to avoid creating nodes with
   // illegal types.
@@ -7145,9 +7193,6 @@ SDValue TargetLowering::BuildSDIV(SDNode *N, SelectionDAG &DAG,
     ShiftMasks.push_back(DAG.getSignedConstant(ShiftMask, dl, SVT));
     return true;
   };
-
-  SDValue N0 = N->getOperand(0);
-  SDValue N1 = N->getOperand(1);
 
   // Collect the shifts / magic values from each element.
   if (!ISD::matchUnaryPredicate(N1, BuildSDIVPattern, /*AllowUndefs=*/false,
