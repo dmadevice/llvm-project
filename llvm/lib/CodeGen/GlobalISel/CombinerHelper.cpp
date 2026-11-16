@@ -5817,8 +5817,8 @@ MachineInstr *CombinerHelper::buildSDivOrSRemUsingMul(MachineInstr &MI) const {
   // signed multiply in a type at least twice as wide instead:
   //   s = EltBits - 1 + ceil(log2(|d|)), c = ceil(2^s / |d|)
   //   t = trunc((sext(x) * c) >>s s), 2^(EltBits-1) < c < 2^EltBits
-  //   x / d = t + (x >>u (EltBits - 1))   if d > 0
-  //   x / d = (x >>s (EltBits - 1)) - t   if d < 0
+  //   x / |d| = t + (x >>u (EltBits - 1))
+  //   x / d = -(x / |d|)                   if d < 0
   // This matches TargetLowering::BuildSDIV.
   // Ref: D. Lemire, C. Bartlett, O. Kaser, "Integer division by constants:
   // optimal bounds", Heliyon, 2021.
@@ -5859,12 +5859,9 @@ MachineInstr *CombinerHelper::buildSDivOrSRemUsingMul(MachineInstr &MI) const {
                             MIB.buildConstant(WideShiftAmtTy, ShiftAmt));
           T = MIB.buildTrunc(Ty, T);
 
-          // Round towards zero: x / |d| = t + 1 and x / -|d| = -1 - t if x is
-          // negative. Take the sign of x from the sign-extended numerator if
-          // Ty would have to be widened anyway.
-          bool IsNeg = Divisor.isNegative();
-          unsigned SignOpc =
-              IsNeg ? TargetOpcode::G_ASHR : TargetOpcode::G_LSHR;
+          // Round towards zero: add 1 if x is negative. Take the sign of x from
+          // the sign-extended numerator if Ty would have to be widened anyway.
+          unsigned SignOpc = TargetOpcode::G_LSHR;
           Register Sign;
           if (isLegal({TargetOpcode::G_ADD, {Ty}})) {
             Sign = MIB.buildInstr(SignOpc, {Ty},
@@ -5877,8 +5874,10 @@ MachineInstr *CombinerHelper::buildSDivOrSRemUsingMul(MachineInstr &MI) const {
                 {WideLHS, MIB.buildConstant(WideShiftAmtTy, WideBits - 1)});
             Sign = MIB.buildTrunc(Ty, WideSign).getReg(0);
           }
-          MachineInstrBuilder Res =
-              IsNeg ? MIB.buildSub(Ty, Sign, T) : MIB.buildAdd(Ty, T, Sign);
+          // For d < 0, negate the quotient (see TargetLowering::BuildSDIV).
+          MachineInstrBuilder Res = MIB.buildAdd(Ty, T, Sign);
+          if (Divisor.isNegative())
+            Res = MIB.buildSub(Ty, MIB.buildConstant(Ty, 0), Res);
           if (Opcode == TargetOpcode::G_SREM) {
             auto Prod = MIB.buildMul(Ty, Res, RHS);
             return MIB.buildSub(Ty, LHS, Prod);

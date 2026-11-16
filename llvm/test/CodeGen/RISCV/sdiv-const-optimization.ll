@@ -674,8 +674,9 @@ define i32 @sdiv_by_minus_7(i32 %x) nounwind {
 ; RV64-NEXT:    sext.w a0, a0
 ; RV64-NEXT:    addi a1, a1, 1171
 ; RV64-NEXT:    mul a1, a0, a1
+; RV64-NEXT:    srli a0, a0, 63
 ; RV64-NEXT:    srai a1, a1, 34
-; RV64-NEXT:    srai a0, a0, 63
+; RV64-NEXT:    neg a0, a0
 ; RV64-NEXT:    sub a0, a0, a1
 ; RV64-NEXT:    ret
 ;
@@ -698,8 +699,9 @@ define i32 @sdiv_by_minus_7(i32 %x) nounwind {
 ; RV64-GI-NEXT:    addi a1, a1, 1171
 ; RV64-GI-NEXT:    mul a1, a0, a1
 ; RV64-GI-NEXT:    srai a1, a1, 34
-; RV64-GI-NEXT:    srai a0, a0, 63
-; RV64-GI-NEXT:    subw a0, a0, a1
+; RV64-GI-NEXT:    srli a0, a0, 63
+; RV64-GI-NEXT:    add a0, a1, a0
+; RV64-GI-NEXT:    negw a0, a0
 ; RV64-GI-NEXT:    ret
 ;
 ; RV32-GI-LABEL: sdiv_by_minus_7:
@@ -725,9 +727,10 @@ define i32 @sdiv_by_minus_3(i32 %x) nounwind {
 ; RV64-NEXT:    sext.w a0, a0
 ; RV64-NEXT:    addi a1, a1, -1365
 ; RV64-NEXT:    mul a1, a0, a1
+; RV64-NEXT:    srli a0, a0, 63
 ; RV64-NEXT:    srai a1, a1, 33
-; RV64-NEXT:    srai a0, a0, 63
-; RV64-NEXT:    sub a0, a0, a1
+; RV64-NEXT:    neg a0, a0
+; RV64-NEXT:    subw a0, a0, a1
 ; RV64-NEXT:    ret
 ;
 ; RV32-LABEL: sdiv_by_minus_3:
@@ -750,8 +753,9 @@ define i32 @sdiv_by_minus_3(i32 %x) nounwind {
 ; RV64-GI-NEXT:    addi a1, a1, -1365
 ; RV64-GI-NEXT:    mul a1, a0, a1
 ; RV64-GI-NEXT:    srai a1, a1, 33
-; RV64-GI-NEXT:    srai a0, a0, 63
-; RV64-GI-NEXT:    subw a0, a0, a1
+; RV64-GI-NEXT:    srli a0, a0, 63
+; RV64-GI-NEXT:    add a0, a1, a0
+; RV64-GI-NEXT:    negw a0, a0
 ; RV64-GI-NEXT:    ret
 ;
 ; RV32-GI-LABEL: sdiv_by_minus_3:
@@ -776,8 +780,9 @@ define i32 @sdiv_by_minus_86400(i32 %x) nounwind {
 ; RV64-NEXT:    sext.w a0, a0
 ; RV64-NEXT:    addi a1, a1, 1287
 ; RV64-NEXT:    mul a1, a0, a1
+; RV64-NEXT:    srli a0, a0, 63
 ; RV64-NEXT:    srai a1, a1, 48
-; RV64-NEXT:    srai a0, a0, 63
+; RV64-NEXT:    neg a0, a0
 ; RV64-NEXT:    sub a0, a0, a1
 ; RV64-NEXT:    ret
 ;
@@ -800,8 +805,9 @@ define i32 @sdiv_by_minus_86400(i32 %x) nounwind {
 ; RV64-GI-NEXT:    addi a1, a1, 1287
 ; RV64-GI-NEXT:    mul a1, a0, a1
 ; RV64-GI-NEXT:    srai a1, a1, 48
-; RV64-GI-NEXT:    srai a0, a0, 63
-; RV64-GI-NEXT:    subw a0, a0, a1
+; RV64-GI-NEXT:    srli a0, a0, 63
+; RV64-GI-NEXT:    add a0, a1, a0
+; RV64-GI-NEXT:    negw a0, a0
 ; RV64-GI-NEXT:    ret
 ;
 ; RV32-GI-LABEL: sdiv_by_minus_86400:
@@ -828,11 +834,11 @@ define i32 @srem_by_minus_60(i32 %x) nounwind {
 ; RV64-NEXT:    addi a1, a1, -1911
 ; RV64-NEXT:    mul a1, a2, a1
 ; RV64-NEXT:    srai a1, a1, 37
-; RV64-NEXT:    srai a2, a2, 63
-; RV64-NEXT:    sub a2, a2, a1
-; RV64-NEXT:    li a1, -60
-; RV64-NEXT:    mul a1, a2, a1
-; RV64-NEXT:    subw a0, a0, a1
+; RV64-NEXT:    srli a2, a2, 63
+; RV64-NEXT:    add a1, a1, a2
+; RV64-NEXT:    li a2, -60
+; RV64-NEXT:    mul a1, a1, a2
+; RV64-NEXT:    addw a0, a0, a1
 ; RV64-NEXT:    ret
 ;
 ; RV32-LABEL: srem_by_minus_60:
@@ -858,10 +864,11 @@ define i32 @srem_by_minus_60(i32 %x) nounwind {
 ; RV64-GI-NEXT:    addi a1, a1, -1911
 ; RV64-GI-NEXT:    mul a1, a2, a1
 ; RV64-GI-NEXT:    srai a1, a1, 37
-; RV64-GI-NEXT:    srai a2, a2, 63
-; RV64-GI-NEXT:    sub a2, a2, a1
-; RV64-GI-NEXT:    li a1, 60
-; RV64-GI-NEXT:    mul a1, a2, a1
+; RV64-GI-NEXT:    srli a2, a2, 63
+; RV64-GI-NEXT:    add a1, a1, a2
+; RV64-GI-NEXT:    neg a1, a1
+; RV64-GI-NEXT:    li a2, 60
+; RV64-GI-NEXT:    mul a1, a1, a2
 ; RV64-GI-NEXT:    addw a0, a0, a1
 ; RV64-GI-NEXT:    ret
 ;
@@ -890,8 +897,9 @@ define i16 @sdiv_i16_by_minus_60(i16 %x) nounwind {
 ; RV64-NEXT:    srai a2, a0, 48
 ; RV64-NEXT:    addi a1, a1, -1911
 ; RV64-NEXT:    mul a1, a2, a1
+; RV64-NEXT:    srli a0, a0, 63
 ; RV64-NEXT:    srli a1, a1, 21
-; RV64-NEXT:    srai a0, a0, 63
+; RV64-NEXT:    neg a0, a0
 ; RV64-NEXT:    sub a0, a0, a1
 ; RV64-NEXT:    ret
 ;
@@ -902,8 +910,9 @@ define i16 @sdiv_i16_by_minus_60(i16 %x) nounwind {
 ; RV32-NEXT:    srai a2, a0, 16
 ; RV32-NEXT:    addi a1, a1, -1911
 ; RV32-NEXT:    mul a1, a2, a1
+; RV32-NEXT:    srli a0, a0, 31
 ; RV32-NEXT:    srai a1, a1, 21
-; RV32-NEXT:    srai a0, a0, 31
+; RV32-NEXT:    neg a0, a0
 ; RV32-NEXT:    sub a0, a0, a1
 ; RV32-NEXT:    ret
 ;
@@ -911,11 +920,12 @@ define i16 @sdiv_i16_by_minus_60(i16 %x) nounwind {
 ; RV64-GI:       # %bb.0:
 ; RV64-GI-NEXT:    lui a1, 9
 ; RV64-GI-NEXT:    slli a0, a0, 48
-; RV64-GI-NEXT:    srai a2, a0, 48
+; RV64-GI-NEXT:    srai a0, a0, 48
 ; RV64-GI-NEXT:    addi a1, a1, -1911
-; RV64-GI-NEXT:    mul a1, a2, a1
+; RV64-GI-NEXT:    mul a1, a0, a1
+; RV64-GI-NEXT:    srli a0, a0, 63
 ; RV64-GI-NEXT:    srai a1, a1, 21
-; RV64-GI-NEXT:    srai a0, a0, 63
+; RV64-GI-NEXT:    neg a0, a0
 ; RV64-GI-NEXT:    sub a0, a0, a1
 ; RV64-GI-NEXT:    ret
 ;
@@ -923,11 +933,12 @@ define i16 @sdiv_i16_by_minus_60(i16 %x) nounwind {
 ; RV32-GI:       # %bb.0:
 ; RV32-GI-NEXT:    lui a1, 9
 ; RV32-GI-NEXT:    slli a0, a0, 16
-; RV32-GI-NEXT:    srai a2, a0, 16
+; RV32-GI-NEXT:    srai a0, a0, 16
 ; RV32-GI-NEXT:    addi a1, a1, -1911
-; RV32-GI-NEXT:    mul a1, a2, a1
+; RV32-GI-NEXT:    mul a1, a0, a1
+; RV32-GI-NEXT:    srli a0, a0, 31
 ; RV32-GI-NEXT:    srai a1, a1, 21
-; RV32-GI-NEXT:    srai a0, a0, 31
+; RV32-GI-NEXT:    neg a0, a0
 ; RV32-GI-NEXT:    sub a0, a0, a1
 ; RV32-GI-NEXT:    ret
   %div = sdiv i16 %x, -60
@@ -941,8 +952,9 @@ define i8 @sdiv_i8_by_minus_7(i8 %x) nounwind {
 ; RV64-NEXT:    slli a0, a0, 56
 ; RV64-NEXT:    srai a2, a0, 56
 ; RV64-NEXT:    mul a1, a2, a1
+; RV64-NEXT:    srli a0, a0, 63
 ; RV64-NEXT:    srli a1, a1, 10
-; RV64-NEXT:    srai a0, a0, 63
+; RV64-NEXT:    neg a0, a0
 ; RV64-NEXT:    sub a0, a0, a1
 ; RV64-NEXT:    ret
 ;
@@ -952,8 +964,9 @@ define i8 @sdiv_i8_by_minus_7(i8 %x) nounwind {
 ; RV32-NEXT:    slli a0, a0, 24
 ; RV32-NEXT:    srai a2, a0, 24
 ; RV32-NEXT:    mul a1, a2, a1
+; RV32-NEXT:    srli a0, a0, 31
 ; RV32-NEXT:    srli a1, a1, 10
-; RV32-NEXT:    srai a0, a0, 31
+; RV32-NEXT:    neg a0, a0
 ; RV32-NEXT:    sub a0, a0, a1
 ; RV32-NEXT:    ret
 ;
@@ -961,10 +974,11 @@ define i8 @sdiv_i8_by_minus_7(i8 %x) nounwind {
 ; RV64-GI:       # %bb.0:
 ; RV64-GI-NEXT:    li a1, 147
 ; RV64-GI-NEXT:    slli a0, a0, 56
-; RV64-GI-NEXT:    srai a2, a0, 56
-; RV64-GI-NEXT:    mul a1, a2, a1
+; RV64-GI-NEXT:    srai a0, a0, 56
+; RV64-GI-NEXT:    mul a1, a0, a1
+; RV64-GI-NEXT:    srli a0, a0, 63
 ; RV64-GI-NEXT:    srai a1, a1, 10
-; RV64-GI-NEXT:    srai a0, a0, 63
+; RV64-GI-NEXT:    neg a0, a0
 ; RV64-GI-NEXT:    sub a0, a0, a1
 ; RV64-GI-NEXT:    ret
 ;
@@ -972,14 +986,72 @@ define i8 @sdiv_i8_by_minus_7(i8 %x) nounwind {
 ; RV32-GI:       # %bb.0:
 ; RV32-GI-NEXT:    li a1, 147
 ; RV32-GI-NEXT:    slli a0, a0, 24
-; RV32-GI-NEXT:    srai a2, a0, 24
-; RV32-GI-NEXT:    mul a1, a2, a1
+; RV32-GI-NEXT:    srai a0, a0, 24
+; RV32-GI-NEXT:    mul a1, a0, a1
+; RV32-GI-NEXT:    srli a0, a0, 31
 ; RV32-GI-NEXT:    srai a1, a1, 10
-; RV32-GI-NEXT:    srai a0, a0, 31
+; RV32-GI-NEXT:    neg a0, a0
 ; RV32-GI-NEXT:    sub a0, a0, a1
 ; RV32-GI-NEXT:    ret
   %div = sdiv i8 %x, -7
   ret i8 %div
+}
+
+; The negated quotient should fold into a single subtract from the accumulator.
+
+define i32 @sdiv_by_minus_7_accumulate(i32 %s, i32 %x) nounwind {
+; RV64-LABEL: sdiv_by_minus_7_accumulate:
+; RV64:       # %bb.0:
+; RV64-NEXT:    lui a2, 299593
+; RV64-NEXT:    slli a2, a2, 1
+; RV64-NEXT:    sext.w a1, a1
+; RV64-NEXT:    addi a2, a2, 1171
+; RV64-NEXT:    mul a2, a1, a2
+; RV64-NEXT:    srli a1, a1, 63
+; RV64-NEXT:    srai a2, a2, 34
+; RV64-NEXT:    sub a0, a0, a1
+; RV64-NEXT:    subw a0, a0, a2
+; RV64-NEXT:    ret
+;
+; RV32-LABEL: sdiv_by_minus_7_accumulate:
+; RV32:       # %bb.0:
+; RV32-NEXT:    lui a2, 449390
+; RV32-NEXT:    addi a2, a2, -1171
+; RV32-NEXT:    mulh a2, a1, a2
+; RV32-NEXT:    sub a2, a2, a1
+; RV32-NEXT:    srli a1, a2, 31
+; RV32-NEXT:    srai a2, a2, 2
+; RV32-NEXT:    add a1, a2, a1
+; RV32-NEXT:    add a0, a0, a1
+; RV32-NEXT:    ret
+;
+; RV64-GI-LABEL: sdiv_by_minus_7_accumulate:
+; RV64-GI:       # %bb.0:
+; RV64-GI-NEXT:    lui a2, 299593
+; RV64-GI-NEXT:    slli a2, a2, 1
+; RV64-GI-NEXT:    sext.w a1, a1
+; RV64-GI-NEXT:    addi a2, a2, 1171
+; RV64-GI-NEXT:    mul a2, a1, a2
+; RV64-GI-NEXT:    srai a2, a2, 34
+; RV64-GI-NEXT:    srli a1, a1, 63
+; RV64-GI-NEXT:    add a1, a2, a1
+; RV64-GI-NEXT:    subw a0, a0, a1
+; RV64-GI-NEXT:    ret
+;
+; RV32-GI-LABEL: sdiv_by_minus_7_accumulate:
+; RV32-GI:       # %bb.0:
+; RV32-GI-NEXT:    lui a2, 449390
+; RV32-GI-NEXT:    addi a2, a2, -1171
+; RV32-GI-NEXT:    mulh a2, a1, a2
+; RV32-GI-NEXT:    sub a2, a2, a1
+; RV32-GI-NEXT:    srai a2, a2, 2
+; RV32-GI-NEXT:    srli a1, a2, 31
+; RV32-GI-NEXT:    add a0, a0, a2
+; RV32-GI-NEXT:    add a0, a0, a1
+; RV32-GI-NEXT:    ret
+  %div = sdiv i32 %x, -7
+  %res = add i32 %s, %div
+  ret i32 %res
 }
 
 ; Negative divisors whose magic is negative (no fixup) and powers of two are
@@ -1502,8 +1574,8 @@ define i8 @sdiv_i8_by_10(i8 %x) nounwind {
 define i64 @sdiv_i64_by_7(i64 %x) nounwind {
 ; RV64-LABEL: sdiv_i64_by_7:
 ; RV64:       # %bb.0:
-; RV64-NEXT:    lui a1, %hi(.LCPI29_0)
-; RV64-NEXT:    ld a1, %lo(.LCPI29_0)(a1)
+; RV64-NEXT:    lui a1, %hi(.LCPI30_0)
+; RV64-NEXT:    ld a1, %lo(.LCPI30_0)(a1)
 ; RV64-NEXT:    mulh a0, a0, a1
 ; RV64-NEXT:    srli a1, a0, 63
 ; RV64-NEXT:    srai a0, a0, 1
@@ -1523,8 +1595,8 @@ define i64 @sdiv_i64_by_7(i64 %x) nounwind {
 ;
 ; RV64-GI-LABEL: sdiv_i64_by_7:
 ; RV64-GI:       # %bb.0:
-; RV64-GI-NEXT:    lui a1, %hi(.LCPI29_0)
-; RV64-GI-NEXT:    ld a1, %lo(.LCPI29_0)(a1)
+; RV64-GI-NEXT:    lui a1, %hi(.LCPI30_0)
+; RV64-GI-NEXT:    ld a1, %lo(.LCPI30_0)(a1)
 ; RV64-GI-NEXT:    mulh a0, a0, a1
 ; RV64-GI-NEXT:    srai a0, a0, 1
 ; RV64-GI-NEXT:    srli a1, a0, 63

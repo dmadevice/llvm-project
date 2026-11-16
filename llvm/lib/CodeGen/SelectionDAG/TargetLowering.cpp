@@ -7110,8 +7110,8 @@ SDValue TargetLowering::BuildSDIV(SDNode *N, SelectionDAG &DAG,
   // twice as wide instead:
   //   s = EltBits - 1 + ceil(log2(|d|)), c = ceil(2^s / |d|)
   //   t = trunc((sext(x) * c) >>s s), 2^(EltBits-1) < c < 2^EltBits
-  //   x / d = t + (x >>u (EltBits - 1))   if d > 0
-  //   x / d = (x >>s (EltBits - 1)) - t   if d < 0, since x / d = -(x / |d|)
+  //   x / |d| = t + (x >>u (EltBits - 1))
+  //   x / d = -(x / |d|)                   if d < 0
   // sext(x) * c cannot overflow since |x| <= 2^(EltBits-1). This removes the
   // numerator add/sub and computes the sign fixup from x, off the multiply's
   // dependency chain.
@@ -7157,26 +7157,29 @@ SDValue TargetLowering::BuildSDIV(SDNode *N, SelectionDAG &DAG,
           T = DAG.getNode(ISD::TRUNCATE, dl, VT, T);
           Created.push_back(T.getNode());
 
-          // Round towards zero: x / |d| = t + 1 and x / -|d| = -1 - t if x is
-          // negative. Take the sign of x from the sign-extended numerator if VT
-          // would have to be promoted anyway.
-          bool IsNeg = Divisor.isNegative();
-          unsigned SignOpc = IsNeg ? ISD::SRA : ISD::SRL;
+          // Round towards zero: add 1 if x is negative. Take the sign of x from
+          // the sign-extended numerator if VT would have to be promoted anyway.
           SDValue Sign;
-          if (isTypeLegal(VT) && isTypeDesirableForOp(SignOpc, VT)) {
-            Sign = DAG.getNode(SignOpc, dl, VT, N0,
+          if (isTypeLegal(VT) && isTypeDesirableForOp(ISD::SRL, VT)) {
+            Sign = DAG.getNode(ISD::SRL, dl, VT, N0,
                                DAG.getShiftAmountConstant(EltBits - 1, VT, dl));
           } else {
             Sign = DAG.getNode(
-                SignOpc, dl, WideVT, WideN0,
+                ISD::SRL, dl, WideVT, WideN0,
                 DAG.getShiftAmountConstant(WideBits - 1, WideVT, dl));
             Created.push_back(Sign.getNode());
             Sign = DAG.getNode(ISD::TRUNCATE, dl, VT, Sign);
           }
           Created.push_back(Sign.getNode());
-          if (IsNeg)
-            return DAG.getNode(ISD::SUB, dl, VT, Sign, T);
-          return DAG.getNode(ISD::ADD, dl, VT, T, Sign);
+          // For d < 0, negate the quotient. Negating (rather than computing
+          // (x >>s (EltBits - 1)) - t) keeps the result an ADD/SUB of a single
+          // value, so that e.g. reductions can fold it into a single SUB.
+          SDValue Q = DAG.getNode(ISD::ADD, dl, VT, T, Sign);
+          if (Divisor.isNegative()) {
+            Created.push_back(Q.getNode());
+            return DAG.getNegative(Q, dl, VT);
+          }
+          return Q;
         }
       }
     }
