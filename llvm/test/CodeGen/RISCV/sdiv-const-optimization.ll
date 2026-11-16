@@ -5,9 +5,9 @@
 ; RUN: llc < %s -mtriple=riscv32-unknown-linux-gnu -mattr=+m -global-isel | FileCheck %s --check-prefix=RV32-GI
 
 ; Test signed division by constants whose magic requires a numerator add-back
-; or subtract. When the high multiply is done in a wider type anyway, the exact
-; (N+1)-bit magic can be used with a wider multiply instead (issue #238449).
-; RV32 has mulh/mulhsu for i32.
+; (d > 0) or subtract (d < 0). When the high multiply is done in a wider type
+; anyway, the exact (N+1)-bit magic can be used with a wider multiply instead
+; (issue #238449). RV32 has mulh/mulhsu for i32.
 
 ; Positive divisors whose 32-bit signed magic is negative (needs the numerator
 ; add-back).
@@ -889,115 +889,8 @@ define i32 @srem_by_minus_60(i32 %x) nounwind {
   ret i32 %rem
 }
 
-define i16 @sdiv_i16_by_minus_60(i16 %x) nounwind {
-; RV64-LABEL: sdiv_i16_by_minus_60:
-; RV64:       # %bb.0:
-; RV64-NEXT:    lui a1, 9
-; RV64-NEXT:    slli a0, a0, 48
-; RV64-NEXT:    srai a2, a0, 48
-; RV64-NEXT:    addi a1, a1, -1911
-; RV64-NEXT:    mul a1, a2, a1
-; RV64-NEXT:    srli a0, a0, 63
-; RV64-NEXT:    srli a1, a1, 21
-; RV64-NEXT:    neg a0, a0
-; RV64-NEXT:    sub a0, a0, a1
-; RV64-NEXT:    ret
-;
-; RV32-LABEL: sdiv_i16_by_minus_60:
-; RV32:       # %bb.0:
-; RV32-NEXT:    lui a1, 9
-; RV32-NEXT:    slli a0, a0, 16
-; RV32-NEXT:    srai a2, a0, 16
-; RV32-NEXT:    addi a1, a1, -1911
-; RV32-NEXT:    mul a1, a2, a1
-; RV32-NEXT:    srli a0, a0, 31
-; RV32-NEXT:    srai a1, a1, 21
-; RV32-NEXT:    neg a0, a0
-; RV32-NEXT:    sub a0, a0, a1
-; RV32-NEXT:    ret
-;
-; RV64-GI-LABEL: sdiv_i16_by_minus_60:
-; RV64-GI:       # %bb.0:
-; RV64-GI-NEXT:    lui a1, 9
-; RV64-GI-NEXT:    slli a0, a0, 48
-; RV64-GI-NEXT:    srai a0, a0, 48
-; RV64-GI-NEXT:    addi a1, a1, -1911
-; RV64-GI-NEXT:    mul a1, a0, a1
-; RV64-GI-NEXT:    srli a0, a0, 63
-; RV64-GI-NEXT:    srai a1, a1, 21
-; RV64-GI-NEXT:    neg a0, a0
-; RV64-GI-NEXT:    sub a0, a0, a1
-; RV64-GI-NEXT:    ret
-;
-; RV32-GI-LABEL: sdiv_i16_by_minus_60:
-; RV32-GI:       # %bb.0:
-; RV32-GI-NEXT:    lui a1, 9
-; RV32-GI-NEXT:    slli a0, a0, 16
-; RV32-GI-NEXT:    srai a0, a0, 16
-; RV32-GI-NEXT:    addi a1, a1, -1911
-; RV32-GI-NEXT:    mul a1, a0, a1
-; RV32-GI-NEXT:    srli a0, a0, 31
-; RV32-GI-NEXT:    srai a1, a1, 21
-; RV32-GI-NEXT:    neg a0, a0
-; RV32-GI-NEXT:    sub a0, a0, a1
-; RV32-GI-NEXT:    ret
-  %div = sdiv i16 %x, -60
-  ret i16 %div
-}
-
-define i8 @sdiv_i8_by_minus_7(i8 %x) nounwind {
-; RV64-LABEL: sdiv_i8_by_minus_7:
-; RV64:       # %bb.0:
-; RV64-NEXT:    li a1, 147
-; RV64-NEXT:    slli a0, a0, 56
-; RV64-NEXT:    srai a2, a0, 56
-; RV64-NEXT:    mul a1, a2, a1
-; RV64-NEXT:    srli a0, a0, 63
-; RV64-NEXT:    srli a1, a1, 10
-; RV64-NEXT:    neg a0, a0
-; RV64-NEXT:    sub a0, a0, a1
-; RV64-NEXT:    ret
-;
-; RV32-LABEL: sdiv_i8_by_minus_7:
-; RV32:       # %bb.0:
-; RV32-NEXT:    li a1, 147
-; RV32-NEXT:    slli a0, a0, 24
-; RV32-NEXT:    srai a2, a0, 24
-; RV32-NEXT:    mul a1, a2, a1
-; RV32-NEXT:    srli a0, a0, 31
-; RV32-NEXT:    srli a1, a1, 10
-; RV32-NEXT:    neg a0, a0
-; RV32-NEXT:    sub a0, a0, a1
-; RV32-NEXT:    ret
-;
-; RV64-GI-LABEL: sdiv_i8_by_minus_7:
-; RV64-GI:       # %bb.0:
-; RV64-GI-NEXT:    li a1, 147
-; RV64-GI-NEXT:    slli a0, a0, 56
-; RV64-GI-NEXT:    srai a0, a0, 56
-; RV64-GI-NEXT:    mul a1, a0, a1
-; RV64-GI-NEXT:    srli a0, a0, 63
-; RV64-GI-NEXT:    srai a1, a1, 10
-; RV64-GI-NEXT:    neg a0, a0
-; RV64-GI-NEXT:    sub a0, a0, a1
-; RV64-GI-NEXT:    ret
-;
-; RV32-GI-LABEL: sdiv_i8_by_minus_7:
-; RV32-GI:       # %bb.0:
-; RV32-GI-NEXT:    li a1, 147
-; RV32-GI-NEXT:    slli a0, a0, 24
-; RV32-GI-NEXT:    srai a0, a0, 24
-; RV32-GI-NEXT:    mul a1, a0, a1
-; RV32-GI-NEXT:    srli a0, a0, 31
-; RV32-GI-NEXT:    srai a1, a1, 10
-; RV32-GI-NEXT:    neg a0, a0
-; RV32-GI-NEXT:    sub a0, a0, a1
-; RV32-GI-NEXT:    ret
-  %div = sdiv i8 %x, -7
-  ret i8 %div
-}
-
-; The negated quotient should fold into a single subtract from the accumulator.
+; The quotient of a negative divisor should fold into a single subtract from
+; an accumulator.
 
 define i32 @sdiv_by_minus_7_accumulate(i32 %s, i32 %x) nounwind {
 ; RV64-LABEL: sdiv_by_minus_7_accumulate:
@@ -1180,8 +1073,8 @@ define i32 @sdiv_by_int_min(i32 %x) nounwind {
   ret i32 %div
 }
 
-; i8/i16 divisors whose 8/16-bit magic is negative (requires the numerator
-; add-back).
+; i8/i16 divisors whose 8/16-bit magic requires a numerator add-back or
+; subtract.
 
 define i16 @sdiv_i16_by_60(i16 %x) nounwind {
 ; RV64-LABEL: sdiv_i16_by_60:
@@ -1353,6 +1246,62 @@ define i16 @srem_i16_by_60(i16 %x) nounwind {
   ret i16 %rem
 }
 
+define i16 @sdiv_i16_by_minus_60(i16 %x) nounwind {
+; RV64-LABEL: sdiv_i16_by_minus_60:
+; RV64:       # %bb.0:
+; RV64-NEXT:    lui a1, 9
+; RV64-NEXT:    slli a0, a0, 48
+; RV64-NEXT:    srai a2, a0, 48
+; RV64-NEXT:    addi a1, a1, -1911
+; RV64-NEXT:    mul a1, a2, a1
+; RV64-NEXT:    srli a0, a0, 63
+; RV64-NEXT:    srli a1, a1, 21
+; RV64-NEXT:    neg a0, a0
+; RV64-NEXT:    sub a0, a0, a1
+; RV64-NEXT:    ret
+;
+; RV32-LABEL: sdiv_i16_by_minus_60:
+; RV32:       # %bb.0:
+; RV32-NEXT:    lui a1, 9
+; RV32-NEXT:    slli a0, a0, 16
+; RV32-NEXT:    srai a2, a0, 16
+; RV32-NEXT:    addi a1, a1, -1911
+; RV32-NEXT:    mul a1, a2, a1
+; RV32-NEXT:    srli a0, a0, 31
+; RV32-NEXT:    srai a1, a1, 21
+; RV32-NEXT:    neg a0, a0
+; RV32-NEXT:    sub a0, a0, a1
+; RV32-NEXT:    ret
+;
+; RV64-GI-LABEL: sdiv_i16_by_minus_60:
+; RV64-GI:       # %bb.0:
+; RV64-GI-NEXT:    lui a1, 9
+; RV64-GI-NEXT:    slli a0, a0, 48
+; RV64-GI-NEXT:    srai a0, a0, 48
+; RV64-GI-NEXT:    addi a1, a1, -1911
+; RV64-GI-NEXT:    mul a1, a0, a1
+; RV64-GI-NEXT:    srli a0, a0, 63
+; RV64-GI-NEXT:    srai a1, a1, 21
+; RV64-GI-NEXT:    neg a0, a0
+; RV64-GI-NEXT:    sub a0, a0, a1
+; RV64-GI-NEXT:    ret
+;
+; RV32-GI-LABEL: sdiv_i16_by_minus_60:
+; RV32-GI:       # %bb.0:
+; RV32-GI-NEXT:    lui a1, 9
+; RV32-GI-NEXT:    slli a0, a0, 16
+; RV32-GI-NEXT:    srai a0, a0, 16
+; RV32-GI-NEXT:    addi a1, a1, -1911
+; RV32-GI-NEXT:    mul a1, a0, a1
+; RV32-GI-NEXT:    srli a0, a0, 31
+; RV32-GI-NEXT:    srai a1, a1, 21
+; RV32-GI-NEXT:    neg a0, a0
+; RV32-GI-NEXT:    sub a0, a0, a1
+; RV32-GI-NEXT:    ret
+  %div = sdiv i16 %x, -60
+  ret i16 %div
+}
+
 define i8 @sdiv_i8_by_7(i8 %x) nounwind {
 ; RV64-LABEL: sdiv_i8_by_7:
 ; RV64:       # %bb.0:
@@ -1461,7 +1410,59 @@ define i8 @srem_i8_by_7(i8 %x) nounwind {
   ret i8 %rem
 }
 
-; i8/i16 divisors whose magic is positive (no add-back).
+define i8 @sdiv_i8_by_minus_7(i8 %x) nounwind {
+; RV64-LABEL: sdiv_i8_by_minus_7:
+; RV64:       # %bb.0:
+; RV64-NEXT:    li a1, 147
+; RV64-NEXT:    slli a0, a0, 56
+; RV64-NEXT:    srai a2, a0, 56
+; RV64-NEXT:    mul a1, a2, a1
+; RV64-NEXT:    srli a0, a0, 63
+; RV64-NEXT:    srli a1, a1, 10
+; RV64-NEXT:    neg a0, a0
+; RV64-NEXT:    sub a0, a0, a1
+; RV64-NEXT:    ret
+;
+; RV32-LABEL: sdiv_i8_by_minus_7:
+; RV32:       # %bb.0:
+; RV32-NEXT:    li a1, 147
+; RV32-NEXT:    slli a0, a0, 24
+; RV32-NEXT:    srai a2, a0, 24
+; RV32-NEXT:    mul a1, a2, a1
+; RV32-NEXT:    srli a0, a0, 31
+; RV32-NEXT:    srli a1, a1, 10
+; RV32-NEXT:    neg a0, a0
+; RV32-NEXT:    sub a0, a0, a1
+; RV32-NEXT:    ret
+;
+; RV64-GI-LABEL: sdiv_i8_by_minus_7:
+; RV64-GI:       # %bb.0:
+; RV64-GI-NEXT:    li a1, 147
+; RV64-GI-NEXT:    slli a0, a0, 56
+; RV64-GI-NEXT:    srai a0, a0, 56
+; RV64-GI-NEXT:    mul a1, a0, a1
+; RV64-GI-NEXT:    srli a0, a0, 63
+; RV64-GI-NEXT:    srai a1, a1, 10
+; RV64-GI-NEXT:    neg a0, a0
+; RV64-GI-NEXT:    sub a0, a0, a1
+; RV64-GI-NEXT:    ret
+;
+; RV32-GI-LABEL: sdiv_i8_by_minus_7:
+; RV32-GI:       # %bb.0:
+; RV32-GI-NEXT:    li a1, 147
+; RV32-GI-NEXT:    slli a0, a0, 24
+; RV32-GI-NEXT:    srai a0, a0, 24
+; RV32-GI-NEXT:    mul a1, a0, a1
+; RV32-GI-NEXT:    srli a0, a0, 31
+; RV32-GI-NEXT:    srai a1, a1, 10
+; RV32-GI-NEXT:    neg a0, a0
+; RV32-GI-NEXT:    sub a0, a0, a1
+; RV32-GI-NEXT:    ret
+  %div = sdiv i8 %x, -7
+  ret i8 %div
+}
+
+; i8/i16 divisors whose magic is positive (no fixup).
 
 define i16 @sdiv_i16_by_7(i16 %x) nounwind {
 ; RV64-LABEL: sdiv_i16_by_7:

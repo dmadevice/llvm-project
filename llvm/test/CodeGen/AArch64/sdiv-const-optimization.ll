@@ -3,9 +3,9 @@
 ; RUN: llc < %s -mtriple=aarch64-unknown-linux -global-isel=1 | FileCheck %s --check-prefixes=CHECK,CHECK-GI
 
 ; Test signed division by constants whose magic requires a numerator add-back
-; or subtract. AArch64 has no native 32-bit MULHS, so the exact (N+1)-bit magic
-; can be used with a wider multiply instead of smull plus add-back
-; (issue #238449).
+; (d > 0) or subtract (d < 0). AArch64 has no native 32-bit MULHS, so the exact
+; (N+1)-bit magic can be used with a wider multiply instead of smull plus the
+; add-back/subtract (issue #238449).
 
 ; Positive divisors whose 32-bit signed magic is negative (needs the numerator
 ; add-back).
@@ -367,55 +367,8 @@ define i32 @srem_by_minus_60(i32 %x) nounwind {
   ret i32 %rem
 }
 
-define i16 @sdiv_i16_by_minus_60(i16 %x) nounwind {
-; CHECK-SD-LABEL: sdiv_i16_by_minus_60:
-; CHECK-SD:       // %bb.0:
-; CHECK-SD-NEXT:    sxth w8, w0
-; CHECK-SD-NEXT:    mov w9, #34953 // =0x8889
-; CHECK-SD-NEXT:    mul w9, w8, w9
-; CHECK-SD-NEXT:    asr w9, w9, #21
-; CHECK-SD-NEXT:    add w8, w9, w8, lsr #31
-; CHECK-SD-NEXT:    neg w0, w8
-; CHECK-SD-NEXT:    ret
-;
-; CHECK-GI-LABEL: sdiv_i16_by_minus_60:
-; CHECK-GI:       // %bb.0:
-; CHECK-GI-NEXT:    sxth w8, w0
-; CHECK-GI-NEXT:    mov w9, #34953 // =0x8889
-; CHECK-GI-NEXT:    mul w9, w8, w9
-; CHECK-GI-NEXT:    lsr w8, w8, #31
-; CHECK-GI-NEXT:    add w8, w8, w9, asr #21
-; CHECK-GI-NEXT:    neg w0, w8
-; CHECK-GI-NEXT:    ret
-  %div = sdiv i16 %x, -60
-  ret i16 %div
-}
-
-define i8 @sdiv_i8_by_minus_7(i8 %x) nounwind {
-; CHECK-SD-LABEL: sdiv_i8_by_minus_7:
-; CHECK-SD:       // %bb.0:
-; CHECK-SD-NEXT:    sxtb w8, w0
-; CHECK-SD-NEXT:    mov w9, #147 // =0x93
-; CHECK-SD-NEXT:    mul w9, w8, w9
-; CHECK-SD-NEXT:    lsr w9, w9, #10
-; CHECK-SD-NEXT:    add w8, w9, w8, lsr #31
-; CHECK-SD-NEXT:    neg w0, w8
-; CHECK-SD-NEXT:    ret
-;
-; CHECK-GI-LABEL: sdiv_i8_by_minus_7:
-; CHECK-GI:       // %bb.0:
-; CHECK-GI-NEXT:    sxtb w8, w0
-; CHECK-GI-NEXT:    mov w9, #147 // =0x93
-; CHECK-GI-NEXT:    mul w9, w8, w9
-; CHECK-GI-NEXT:    lsr w8, w8, #31
-; CHECK-GI-NEXT:    add w8, w8, w9, asr #10
-; CHECK-GI-NEXT:    neg w0, w8
-; CHECK-GI-NEXT:    ret
-  %div = sdiv i8 %x, -7
-  ret i8 %div
-}
-
-; The negated quotient should fold into a single subtract from the accumulator.
+; The quotient of a negative divisor should fold into a single subtract from
+; an accumulator.
 
 define i32 @sdiv_by_minus_7_accumulate(i32 %s, i32 %x) nounwind {
 ; CHECK-LABEL: sdiv_by_minus_7_accumulate:
@@ -496,8 +449,8 @@ define i32 @sdiv_by_int_min(i32 %x) nounwind {
   ret i32 %div
 }
 
-; i8/i16 divisors whose 8/16-bit magic is negative (requires the numerator
-; add-back).
+; i8/i16 divisors whose 8/16-bit magic requires a numerator add-back or
+; subtract.
 
 define i16 @sdiv_i16_by_60(i16 %x) nounwind {
 ; CHECK-SD-LABEL: sdiv_i16_by_60:
@@ -569,6 +522,30 @@ define i16 @srem_i16_by_60(i16 %x) nounwind {
   ret i16 %rem
 }
 
+define i16 @sdiv_i16_by_minus_60(i16 %x) nounwind {
+; CHECK-SD-LABEL: sdiv_i16_by_minus_60:
+; CHECK-SD:       // %bb.0:
+; CHECK-SD-NEXT:    sxth w8, w0
+; CHECK-SD-NEXT:    mov w9, #34953 // =0x8889
+; CHECK-SD-NEXT:    mul w9, w8, w9
+; CHECK-SD-NEXT:    asr w9, w9, #21
+; CHECK-SD-NEXT:    add w8, w9, w8, lsr #31
+; CHECK-SD-NEXT:    neg w0, w8
+; CHECK-SD-NEXT:    ret
+;
+; CHECK-GI-LABEL: sdiv_i16_by_minus_60:
+; CHECK-GI:       // %bb.0:
+; CHECK-GI-NEXT:    sxth w8, w0
+; CHECK-GI-NEXT:    mov w9, #34953 // =0x8889
+; CHECK-GI-NEXT:    mul w9, w8, w9
+; CHECK-GI-NEXT:    lsr w8, w8, #31
+; CHECK-GI-NEXT:    add w8, w8, w9, asr #21
+; CHECK-GI-NEXT:    neg w0, w8
+; CHECK-GI-NEXT:    ret
+  %div = sdiv i16 %x, -60
+  ret i16 %div
+}
+
 define i8 @sdiv_i8_by_7(i8 %x) nounwind {
 ; CHECK-SD-LABEL: sdiv_i8_by_7:
 ; CHECK-SD:       // %bb.0:
@@ -617,7 +594,31 @@ define i8 @srem_i8_by_7(i8 %x) nounwind {
   ret i8 %rem
 }
 
-; i8/i16 divisors whose magic is positive (no add-back).
+define i8 @sdiv_i8_by_minus_7(i8 %x) nounwind {
+; CHECK-SD-LABEL: sdiv_i8_by_minus_7:
+; CHECK-SD:       // %bb.0:
+; CHECK-SD-NEXT:    sxtb w8, w0
+; CHECK-SD-NEXT:    mov w9, #147 // =0x93
+; CHECK-SD-NEXT:    mul w9, w8, w9
+; CHECK-SD-NEXT:    lsr w9, w9, #10
+; CHECK-SD-NEXT:    add w8, w9, w8, lsr #31
+; CHECK-SD-NEXT:    neg w0, w8
+; CHECK-SD-NEXT:    ret
+;
+; CHECK-GI-LABEL: sdiv_i8_by_minus_7:
+; CHECK-GI:       // %bb.0:
+; CHECK-GI-NEXT:    sxtb w8, w0
+; CHECK-GI-NEXT:    mov w9, #147 // =0x93
+; CHECK-GI-NEXT:    mul w9, w8, w9
+; CHECK-GI-NEXT:    lsr w8, w8, #31
+; CHECK-GI-NEXT:    add w8, w8, w9, asr #10
+; CHECK-GI-NEXT:    neg w0, w8
+; CHECK-GI-NEXT:    ret
+  %div = sdiv i8 %x, -7
+  ret i8 %div
+}
+
+; i8/i16 divisors whose magic is positive (no fixup).
 
 define i16 @sdiv_i16_by_7(i16 %x) nounwind {
 ; CHECK-SD-LABEL: sdiv_i16_by_7:
