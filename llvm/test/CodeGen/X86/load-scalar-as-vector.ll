@@ -357,13 +357,9 @@ define <8 x i16> @sdiv_op1_constant(ptr %p) nounwind {
 ; SSE-LABEL: sdiv_op1_constant:
 ; SSE:       # %bb.0:
 ; SSE-NEXT:    movswl (%rdi), %eax
-; SSE-NEXT:    imull $-15603, %eax, %ecx # imm = 0xC30D
-; SSE-NEXT:    shrl $16, %ecx
-; SSE-NEXT:    addl %eax, %ecx
-; SSE-NEXT:    movzwl %cx, %eax
-; SSE-NEXT:    movswl %ax, %ecx
-; SSE-NEXT:    shrl $15, %eax
-; SSE-NEXT:    sarl $5, %ecx
+; SSE-NEXT:    imull $49933, %eax, %ecx # imm = 0xC30D
+; SSE-NEXT:    shrl $31, %eax
+; SSE-NEXT:    sarl $21, %ecx
 ; SSE-NEXT:    addl %eax, %ecx
 ; SSE-NEXT:    movd %ecx, %xmm0
 ; SSE-NEXT:    retq
@@ -371,13 +367,9 @@ define <8 x i16> @sdiv_op1_constant(ptr %p) nounwind {
 ; AVX-LABEL: sdiv_op1_constant:
 ; AVX:       # %bb.0:
 ; AVX-NEXT:    movswl (%rdi), %eax
-; AVX-NEXT:    imull $-15603, %eax, %ecx # imm = 0xC30D
-; AVX-NEXT:    shrl $16, %ecx
-; AVX-NEXT:    addl %eax, %ecx
-; AVX-NEXT:    movzwl %cx, %eax
-; AVX-NEXT:    movswl %ax, %ecx
-; AVX-NEXT:    shrl $15, %eax
-; AVX-NEXT:    sarl $5, %ecx
+; AVX-NEXT:    imull $49933, %eax, %ecx # imm = 0xC30D
+; AVX-NEXT:    shrl $31, %eax
+; AVX-NEXT:    sarl $21, %ecx
 ; AVX-NEXT:    addl %eax, %ecx
 ; AVX-NEXT:    vmovd %ecx, %xmm0
 ; AVX-NEXT:    retq

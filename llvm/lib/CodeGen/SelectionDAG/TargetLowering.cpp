@@ -7102,47 +7102,75 @@ SDValue TargetLowering::BuildSDIV(SDNode *N, SelectionDAG &DAG,
   SDValue N0 = N->getOperand(0);
   SDValue N1 = N->getOperand(1);
 
-  // If the target has no native i32 MULHS, the i32 high multiply ends up as a
-  // widened i64 multiply anyway (see DAGCombiner::visitMULHS). In that case, if
-  // the divisor d > 0 is not a power of two and its 32-bit magic is negative
-  // (i.e. the numerator would have to be added back), use the exact 33-bit
-  // magic with a signed i64 multiply instead:
-  //   s = 31 + ceil(log2(d)), c = ceil(2^s / d), 2^31 < c < 2^32
-  //   x / d = trunc((sext(x) * c) >>s s) + (x >>u 31)
-  // sext(x) * c cannot overflow since |x| <= 2^31. This removes the add-back
-  // and computes the sign fixup from x, off the multiply's dependency chain.
+  // If the target has no native MULHS for VT, the high multiply ends up as a
+  // widened multiply anyway (see DAGCombiner::visitMULHS). In that case, if
+  // the divisor d > 0 is not a power of two and its magic is negative (i.e.
+  // the numerator would have to be added back), use the exact
+  // (EltBits + 1)-bit magic with a signed multiply in a type at least twice as
+  // wide instead:
+  //   s = EltBits - 1 + ceil(log2(d)), c = ceil(2^s / d)
+  //   t = trunc((sext(x) * c) >>s s), 2^(EltBits-1) < c < 2^EltBits
+  //   x / d = t + (x >>u (EltBits - 1))
+  // sext(x) * c cannot overflow since |x| <= 2^(EltBits-1). This removes the
+  // numerator add-back and computes the sign fixup from x, off the multiply's
+  // dependency chain.
   // Ref: D. Lemire, C. Bartlett, O. Kaser, "Integer division by constants:
   // optimal bounds", Heliyon, 2021.
-  const EVT WideSVT = MVT::i64;
-  if (VT == MVT::i32 && !HasMULHS && isOperationLegal(ISD::MUL, WideSVT)) {
+  if (!VT.isVector() && !HasMULHS) {
     if (auto *C = dyn_cast<ConstantSDNode>(N1)) {
       APInt Divisor = C->getAPIntValue().trunc(EltBits);
-      if (Divisor.isStrictlyPositive() && !Divisor.isPowerOf2() &&
-          SignedDivisionByConstantInfo::get(Divisor).Magic.isNegative()) {
-        unsigned WideBits = WideSVT.getSizeInBits();
-        unsigned ShiftAmt = EltBits - 1 + Divisor.ceilLogBase2();
-        APInt Magic =
-            APIntOps::RoundingUDiv(APInt::getOneBitSet(WideBits, ShiftAmt),
-                                   Divisor.zext(WideBits), APInt::Rounding::UP);
-        assert(Magic.ult(APInt::getOneBitSet(WideBits, EltBits)) &&
-               "Expected the magic to fit in EltBits + 1 signed bits");
+      APInt AbsDivisor = Divisor.abs();
+      if (!Divisor.isZero() && !AbsDivisor.isPowerOf2()) {
+        APInt Magic = SignedDivisionByConstantInfo::get(Divisor).Magic;
+        bool NeedsNumeratorFixup =
+            Divisor.isStrictlyPositive() && Magic.isNegative();
+        // Find the narrowest legal integer type at least twice as wide as VT
+        // with a legal multiply that the target is happy to compute in.
+        EVT WideVT;
+        if (NeedsNumeratorFixup)
+          for (MVT IntVT : MVT::integer_valuetypes())
+            if (IntVT.getSizeInBits() >= 2 * EltBits &&
+                isOperationLegal(ISD::MUL, IntVT) &&
+                isTypeDesirableForOp(ISD::MUL, IntVT) &&
+                isTypeDesirableForOp(ISD::SRA, IntVT)) {
+              WideVT = IntVT;
+              break;
+            }
+        if (WideVT.isSimple()) {
+          unsigned WideBits = WideVT.getSizeInBits();
+          unsigned ShiftAmt = EltBits - 1 + AbsDivisor.ceilLogBase2();
+          APInt WideMagic = APIntOps::RoundingUDiv(
+              APInt::getOneBitSet(WideBits, ShiftAmt),
+              AbsDivisor.zext(WideBits), APInt::Rounding::UP);
+          assert(WideMagic.ult(APInt::getOneBitSet(WideBits, EltBits)) &&
+                 "Expected the magic to fit in EltBits + 1 signed bits");
 
-        SDValue Q = DAG.getNode(ISD::SIGN_EXTEND, dl, WideSVT, N0);
-        Q = DAG.getNode(ISD::MUL, dl, WideSVT, Q,
-                        DAG.getConstant(Magic, dl, WideSVT));
-        Created.push_back(Q.getNode());
-        Q = DAG.getNode(ISD::SRA, dl, WideSVT, Q,
-                        DAG.getShiftAmountConstant(ShiftAmt, WideSVT, dl));
-        Created.push_back(Q.getNode());
-        Q = DAG.getNode(ISD::TRUNCATE, dl, VT, Q);
-        Created.push_back(Q.getNode());
+          SDValue WideN0 = DAG.getNode(ISD::SIGN_EXTEND, dl, WideVT, N0);
+          SDValue T = DAG.getNode(ISD::MUL, dl, WideVT, WideN0,
+                                  DAG.getConstant(WideMagic, dl, WideVT));
+          Created.push_back(T.getNode());
+          T = DAG.getNode(ISD::SRA, dl, WideVT, T,
+                          DAG.getShiftAmountConstant(ShiftAmt, WideVT, dl));
+          Created.push_back(T.getNode());
+          T = DAG.getNode(ISD::TRUNCATE, dl, VT, T);
+          Created.push_back(T.getNode());
 
-        // Add 1 if the numerator is negative.
-        SDValue T =
-            DAG.getNode(ISD::SRL, dl, VT, N0,
-                        DAG.getShiftAmountConstant(EltBits - 1, VT, dl));
-        Created.push_back(T.getNode());
-        return DAG.getNode(ISD::ADD, dl, VT, Q, T);
+          // Add 1 if the numerator is negative. Take the sign bit from the
+          // sign-extended numerator if VT would have to be promoted anyway.
+          SDValue Sign;
+          if (isTypeLegal(VT) && isTypeDesirableForOp(ISD::SRL, VT)) {
+            Sign = DAG.getNode(ISD::SRL, dl, VT, N0,
+                               DAG.getShiftAmountConstant(EltBits - 1, VT, dl));
+          } else {
+            Sign = DAG.getNode(
+                ISD::SRL, dl, WideVT, WideN0,
+                DAG.getShiftAmountConstant(WideBits - 1, WideVT, dl));
+            Created.push_back(Sign.getNode());
+            Sign = DAG.getNode(ISD::TRUNCATE, dl, VT, Sign);
+          }
+          Created.push_back(Sign.getNode());
+          return DAG.getNode(ISD::ADD, dl, VT, T, Sign);
+        }
       }
     }
   }

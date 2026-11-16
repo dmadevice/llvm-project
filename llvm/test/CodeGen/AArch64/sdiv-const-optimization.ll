@@ -238,12 +238,10 @@ define i16 @sdiv_i16_by_60(i16 %x) nounwind {
 ; CHECK-LABEL: sdiv_i16_by_60:
 ; CHECK:       // %bb.0:
 ; CHECK-NEXT:    sxth w8, w0
-; CHECK-NEXT:    mov w9, #-30583 // =0xffff8889
-; CHECK-NEXT:    mul w8, w8, w9
-; CHECK-NEXT:    add w8, w0, w8, lsr #16
-; CHECK-NEXT:    sbfx w9, w8, #5, #11
-; CHECK-NEXT:    and w8, w8, #0x8000
-; CHECK-NEXT:    add w0, w9, w8, lsr #15
+; CHECK-NEXT:    mov w9, #34953 // =0x8889
+; CHECK-NEXT:    mul w9, w8, w9
+; CHECK-NEXT:    asr w9, w9, #21
+; CHECK-NEXT:    add w0, w9, w8, lsr #31
 ; CHECK-NEXT:    ret
   %div = sdiv i16 %x, 60
   ret i16 %div
@@ -253,12 +251,10 @@ define i16 @sdiv_i16_by_1000(i16 %x) nounwind {
 ; CHECK-LABEL: sdiv_i16_by_1000:
 ; CHECK:       // %bb.0:
 ; CHECK-NEXT:    sxth w8, w0
-; CHECK-NEXT:    mov w9, #-31981 // =0xffff8313
-; CHECK-NEXT:    mul w8, w8, w9
-; CHECK-NEXT:    add w8, w0, w8, lsr #16
-; CHECK-NEXT:    sbfx w9, w8, #9, #7
-; CHECK-NEXT:    and w8, w8, #0x8000
-; CHECK-NEXT:    add w0, w9, w8, lsr #15
+; CHECK-NEXT:    mov w9, #33555 // =0x8313
+; CHECK-NEXT:    mul w9, w8, w9
+; CHECK-NEXT:    asr w9, w9, #25
+; CHECK-NEXT:    add w0, w9, w8, lsr #31
 ; CHECK-NEXT:    ret
   %div = sdiv i16 %x, 1000
   ret i16 %div
@@ -268,12 +264,10 @@ define i16 @srem_i16_by_60(i16 %x) nounwind {
 ; CHECK-LABEL: srem_i16_by_60:
 ; CHECK:       // %bb.0:
 ; CHECK-NEXT:    sxth w8, w0
-; CHECK-NEXT:    mov w9, #-30583 // =0xffff8889
-; CHECK-NEXT:    mul w8, w8, w9
-; CHECK-NEXT:    add w8, w0, w8, lsr #16
-; CHECK-NEXT:    sbfx w9, w8, #5, #11
-; CHECK-NEXT:    and w8, w8, #0x8000
-; CHECK-NEXT:    add w8, w9, w8, lsr #15
+; CHECK-NEXT:    mov w9, #34953 // =0x8889
+; CHECK-NEXT:    mul w9, w8, w9
+; CHECK-NEXT:    asr w9, w9, #21
+; CHECK-NEXT:    add w8, w9, w8, lsr #31
 ; CHECK-NEXT:    mov w9, #60 // =0x3c
 ; CHECK-NEXT:    msub w0, w8, w9, w0
 ; CHECK-NEXT:    ret
@@ -285,12 +279,10 @@ define i8 @sdiv_i8_by_7(i8 %x) nounwind {
 ; CHECK-LABEL: sdiv_i8_by_7:
 ; CHECK:       // %bb.0:
 ; CHECK-NEXT:    sxtb w8, w0
-; CHECK-NEXT:    mov w9, #-109 // =0xffffff93
-; CHECK-NEXT:    mul w8, w8, w9
-; CHECK-NEXT:    add w8, w0, w8, lsr #8
-; CHECK-NEXT:    sbfx w9, w8, #2, #6
-; CHECK-NEXT:    and w8, w8, #0x80
-; CHECK-NEXT:    add w0, w9, w8, lsr #7
+; CHECK-NEXT:    mov w9, #147 // =0x93
+; CHECK-NEXT:    mul w9, w8, w9
+; CHECK-NEXT:    lsr w9, w9, #10
+; CHECK-NEXT:    add w0, w9, w8, lsr #31
 ; CHECK-NEXT:    ret
   %div = sdiv i8 %x, 7
   ret i8 %div
@@ -300,12 +292,10 @@ define i8 @srem_i8_by_7(i8 %x) nounwind {
 ; CHECK-LABEL: srem_i8_by_7:
 ; CHECK:       // %bb.0:
 ; CHECK-NEXT:    sxtb w8, w0
-; CHECK-NEXT:    mov w9, #-109 // =0xffffff93
-; CHECK-NEXT:    mul w8, w8, w9
-; CHECK-NEXT:    add w8, w0, w8, lsr #8
-; CHECK-NEXT:    sbfx w9, w8, #2, #6
-; CHECK-NEXT:    and w8, w8, #0x80
-; CHECK-NEXT:    add w8, w9, w8, lsr #7
+; CHECK-NEXT:    mov w9, #147 // =0x93
+; CHECK-NEXT:    mul w9, w8, w9
+; CHECK-NEXT:    lsr w9, w9, #10
+; CHECK-NEXT:    add w8, w9, w8, lsr #31
 ; CHECK-NEXT:    sub w8, w8, w8, lsl #3
 ; CHECK-NEXT:    add w0, w0, w8
 ; CHECK-NEXT:    ret

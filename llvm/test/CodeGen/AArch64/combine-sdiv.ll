@@ -1457,12 +1457,10 @@ define i8 @combine_i8_sdiv_const7(i8 %x) {
 ; CHECK-SD-LABEL: combine_i8_sdiv_const7:
 ; CHECK-SD:       // %bb.0:
 ; CHECK-SD-NEXT:    sxtb w8, w0
-; CHECK-SD-NEXT:    mov w9, #-109 // =0xffffff93
-; CHECK-SD-NEXT:    mul w8, w8, w9
-; CHECK-SD-NEXT:    add w8, w0, w8, lsr #8
-; CHECK-SD-NEXT:    sbfx w9, w8, #2, #6
-; CHECK-SD-NEXT:    and w8, w8, #0x80
-; CHECK-SD-NEXT:    add w0, w9, w8, lsr #7
+; CHECK-SD-NEXT:    mov w9, #147 // =0x93
+; CHECK-SD-NEXT:    mul w9, w8, w9
+; CHECK-SD-NEXT:    lsr w9, w9, #10
+; CHECK-SD-NEXT:    add w0, w9, w8, lsr #31
 ; CHECK-SD-NEXT:    ret
 ;
 ; CHECK-GI-LABEL: combine_i8_sdiv_const7:
