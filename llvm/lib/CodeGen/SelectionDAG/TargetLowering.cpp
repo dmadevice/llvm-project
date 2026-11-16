@@ -7126,6 +7126,12 @@ SDValue TargetLowering::BuildSDIV(SDNode *N, SelectionDAG &DAG,
         bool NeedsNumeratorFixup =
             (Divisor.isStrictlyPositive() && Magic.isNegative()) ||
             (Divisor.isNegative() && Magic.isStrictlyPositive());
+        // A native SMUL_LOHI is only replaced by a wider multiply anyway (see
+        // DAGCombiner::visitSMUL_LOHI) if a MUL exactly twice as wide is legal;
+        // don't bypass it otherwise.
+        EVT TwiceVT = EVT::getIntegerVT(*DAG.getContext(), 2 * EltBits);
+        if (HasSMUL_LOHI && !isOperationLegal(ISD::MUL, TwiceVT))
+          NeedsNumeratorFixup = false;
         // Find the narrowest legal integer type at least twice as wide as VT
         // with a legal multiply that the target is happy to compute in.
         EVT WideVT;
