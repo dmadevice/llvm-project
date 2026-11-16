@@ -1419,14 +1419,11 @@ define i5 @combine_i5_sdiv_const7(i5 %x) {
 ;
 ; CHECK-GI-LABEL: combine_i5_sdiv_const7:
 ; CHECK-GI:       // %bb.0:
-; CHECK-GI-NEXT:    mov w8, #19 // =0x13
-; CHECK-GI-NEXT:    sbfx w9, w0, #0, #5
-; CHECK-GI-NEXT:    sbfx w8, w8, #0, #5
-; CHECK-GI-NEXT:    mul w8, w9, w8
-; CHECK-GI-NEXT:    add w8, w0, w8, asr #5
-; CHECK-GI-NEXT:    sbfx w8, w8, #0, #5
-; CHECK-GI-NEXT:    asr w8, w8, #2
-; CHECK-GI-NEXT:    add w0, w8, w8, lsr #31
+; CHECK-GI-NEXT:    sbfx w8, w0, #0, #5
+; CHECK-GI-NEXT:    mov w9, #19 // =0x13
+; CHECK-GI-NEXT:    mul w9, w8, w9
+; CHECK-GI-NEXT:    lsr w8, w8, #31
+; CHECK-GI-NEXT:    add w0, w8, w9, asr #7
 ; CHECK-GI-NEXT:    ret
   %1 = sdiv i5 %x, 7
   ret i5 %1
@@ -1466,11 +1463,10 @@ define i8 @combine_i8_sdiv_const7(i8 %x) {
 ; CHECK-GI-LABEL: combine_i8_sdiv_const7:
 ; CHECK-GI:       // %bb.0:
 ; CHECK-GI-NEXT:    sxtb w8, w0
-; CHECK-GI-NEXT:    mov w9, #-109 // =0xffffff93
-; CHECK-GI-NEXT:    mul w8, w8, w9
-; CHECK-GI-NEXT:    add w8, w0, w8, asr #8
-; CHECK-GI-NEXT:    sbfx w8, w8, #2, #6
-; CHECK-GI-NEXT:    add w0, w8, w8, lsr #31
+; CHECK-GI-NEXT:    mov w9, #147 // =0x93
+; CHECK-GI-NEXT:    mul w9, w8, w9
+; CHECK-GI-NEXT:    lsr w8, w8, #31
+; CHECK-GI-NEXT:    add w0, w8, w9, asr #10
 ; CHECK-GI-NEXT:    ret
   %1 = sdiv i8 %x, 7
   ret i8 %1
@@ -1543,28 +1539,17 @@ define i16 @combine_i16_sdiv_const100(i16 %x) {
 }
 
 define i32 @combine_i32_sdiv_const7(i32 %x) {
-; CHECK-SD-LABEL: combine_i32_sdiv_const7:
-; CHECK-SD:       // %bb.0:
-; CHECK-SD-NEXT:    // kill: def $w0 killed $w0 def $x0
-; CHECK-SD-NEXT:    sxtw x8, w0
-; CHECK-SD-NEXT:    mov w9, #9363 // =0x2493
-; CHECK-SD-NEXT:    movk w9, #37449, lsl #16
-; CHECK-SD-NEXT:    mul x8, x8, x9
-; CHECK-SD-NEXT:    lsr w9, w0, #31
-; CHECK-SD-NEXT:    add x0, x9, x8, asr #34
-; CHECK-SD-NEXT:    // kill: def $w0 killed $w0 killed $x0
-; CHECK-SD-NEXT:    ret
-;
-; CHECK-GI-LABEL: combine_i32_sdiv_const7:
-; CHECK-GI:       // %bb.0:
-; CHECK-GI-NEXT:    mov w8, #9363 // =0x2493
-; CHECK-GI-NEXT:    // kill: def $w0 killed $w0 def $x0
-; CHECK-GI-NEXT:    movk w8, #37449, lsl #16
-; CHECK-GI-NEXT:    smull x8, w0, w8
-; CHECK-GI-NEXT:    add x8, x0, x8, asr #32
-; CHECK-GI-NEXT:    asr w8, w8, #2
-; CHECK-GI-NEXT:    add w0, w8, w8, lsr #31
-; CHECK-GI-NEXT:    ret
+; CHECK-LABEL: combine_i32_sdiv_const7:
+; CHECK:       // %bb.0:
+; CHECK-NEXT:    // kill: def $w0 killed $w0 def $x0
+; CHECK-NEXT:    sxtw x8, w0
+; CHECK-NEXT:    mov w9, #9363 // =0x2493
+; CHECK-NEXT:    movk w9, #37449, lsl #16
+; CHECK-NEXT:    mul x8, x8, x9
+; CHECK-NEXT:    lsr w9, w0, #31
+; CHECK-NEXT:    add x0, x9, x8, asr #34
+; CHECK-NEXT:    // kill: def $w0 killed $w0 killed $x0
+; CHECK-NEXT:    ret
   %1 = sdiv i32 %x, 7
   ret i32 %1
 }

@@ -5810,6 +5810,85 @@ MachineInstr *CombinerHelper::buildSDivOrSRemUsingMul(MachineInstr &MI) const {
     return MIB.buildMul(Ty, Res, Factor);
   }
 
+  // If the target has no legal G_SMULH for a scalar Ty, the high multiply is
+  // lowered to a widened multiply anyway. In that case, if |d| is not a power
+  // of two and the magic for d requires the numerator to be added (d > 0) or
+  // subtracted (d < 0), use the exact (EltBits + 1)-bit magic for |d| with a
+  // signed multiply in a type at least twice as wide instead:
+  //   s = EltBits - 1 + ceil(log2(|d|)), c = ceil(2^s / |d|)
+  //   t = trunc((sext(x) * c) >>s s), 2^(EltBits-1) < c < 2^EltBits
+  //   x / d = t + (x >>u (EltBits - 1))   if d > 0
+  //   x / d = (x >>s (EltBits - 1)) - t   if d < 0
+  // This matches TargetLowering::BuildSDIV.
+  // Ref: D. Lemire, C. Bartlett, O. Kaser, "Integer division by constants:
+  // optimal bounds", Heliyon, 2021.
+  if (Ty.isScalar() && LI && !isLegal({TargetOpcode::G_SMULH, {Ty}})) {
+    if (auto C = getIConstantVRegVal(RHS, MRI)) {
+      APInt Divisor = C->trunc(EltBits);
+      APInt AbsDivisor = Divisor.abs();
+      if (!Divisor.isZero() && !AbsDivisor.isPowerOf2()) {
+        APInt Magic = SignedDivisionByConstantInfo::get(Divisor).Magic;
+        bool NeedsNumeratorFixup =
+            (Divisor.isStrictlyPositive() && Magic.isNegative()) ||
+            (Divisor.isNegative() && Magic.isStrictlyPositive());
+        // Find the narrowest scalar type at least twice as wide as Ty with a
+        // legal multiply.
+        LLT WideTy;
+        if (NeedsNumeratorFixup)
+          for (unsigned Bits = PowerOf2Ceil(2 * EltBits); Bits <= 128;
+               Bits *= 2)
+            if (isLegal({TargetOpcode::G_MUL, {Ty.changeElementSize(Bits)}})) {
+              WideTy = Ty.changeElementSize(Bits);
+              break;
+            }
+        if (WideTy.isValid()) {
+          unsigned WideBits = WideTy.getSizeInBits();
+          unsigned ShiftAmt = EltBits - 1 + AbsDivisor.ceilLogBase2();
+          APInt WideMagic = APIntOps::RoundingUDiv(
+              APInt::getOneBitSet(WideBits, ShiftAmt),
+              AbsDivisor.zext(WideBits), APInt::Rounding::UP);
+          assert(WideMagic.ult(APInt::getOneBitSet(WideBits, EltBits)) &&
+                 "Expected the magic to fit in EltBits + 1 signed bits");
+          LLT WideShiftAmtTy =
+              getTargetLowering().getPreferredShiftAmountTy(WideTy);
+
+          auto WideLHS = MIB.buildSExt(WideTy, LHS);
+          auto T = MIB.buildMul(WideTy, WideLHS,
+                                MIB.buildConstant(WideTy, WideMagic));
+          T = MIB.buildAShr(WideTy, T,
+                            MIB.buildConstant(WideShiftAmtTy, ShiftAmt));
+          T = MIB.buildTrunc(Ty, T);
+
+          // Round towards zero: x / |d| = t + 1 and x / -|d| = -1 - t if x is
+          // negative. Take the sign of x from the sign-extended numerator if
+          // Ty would have to be widened anyway.
+          bool IsNeg = Divisor.isNegative();
+          unsigned SignOpc =
+              IsNeg ? TargetOpcode::G_ASHR : TargetOpcode::G_LSHR;
+          Register Sign;
+          if (isLegal({TargetOpcode::G_ADD, {Ty}})) {
+            Sign = MIB.buildInstr(SignOpc, {Ty},
+                                  {LHS, MIB.buildConstant(ScalarShiftAmtTy,
+                                                          EltBits - 1)})
+                       .getReg(0);
+          } else {
+            auto WideSign = MIB.buildInstr(
+                SignOpc, {WideTy},
+                {WideLHS, MIB.buildConstant(WideShiftAmtTy, WideBits - 1)});
+            Sign = MIB.buildTrunc(Ty, WideSign).getReg(0);
+          }
+          MachineInstrBuilder Res =
+              IsNeg ? MIB.buildSub(Ty, Sign, T) : MIB.buildAdd(Ty, T, Sign);
+          if (Opcode == TargetOpcode::G_SREM) {
+            auto Prod = MIB.buildMul(Ty, Res, RHS);
+            return MIB.buildSub(Ty, LHS, Prod);
+          }
+          return Res;
+        }
+      }
+    }
+  }
+
   SmallVector<Register, 16> MagicFactors, Factors, Shifts, ShiftMasks;
 
   auto BuildSDIVPattern = [&](const Constant *C) {

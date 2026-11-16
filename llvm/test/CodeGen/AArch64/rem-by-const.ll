@@ -17,11 +17,10 @@ define i8 @si8_7(i8 %a, i8 %b) {
 ; CHECK-GI-LABEL: si8_7:
 ; CHECK-GI:       // %bb.0: // %entry
 ; CHECK-GI-NEXT:    sxtb w8, w0
-; CHECK-GI-NEXT:    mov w9, #-109 // =0xffffff93
-; CHECK-GI-NEXT:    mul w8, w8, w9
-; CHECK-GI-NEXT:    add w8, w0, w8, asr #8
-; CHECK-GI-NEXT:    sbfx w8, w8, #2, #6
-; CHECK-GI-NEXT:    add w8, w8, w8, lsr #31
+; CHECK-GI-NEXT:    mov w9, #147 // =0x93
+; CHECK-GI-NEXT:    mul w9, w8, w9
+; CHECK-GI-NEXT:    lsr w8, w8, #31
+; CHECK-GI-NEXT:    add w8, w8, w9, asr #10
 ; CHECK-GI-NEXT:    sub w8, w8, w8, lsl #3
 ; CHECK-GI-NEXT:    add w0, w0, w8
 ; CHECK-GI-NEXT:    ret
@@ -228,31 +227,18 @@ entry:
 }
 
 define i32 @si32_7(i32 %a, i32 %b) {
-; CHECK-SD-LABEL: si32_7:
-; CHECK-SD:       // %bb.0: // %entry
-; CHECK-SD-NEXT:    // kill: def $w0 killed $w0 def $x0
-; CHECK-SD-NEXT:    sxtw x8, w0
-; CHECK-SD-NEXT:    mov w9, #9363 // =0x2493
-; CHECK-SD-NEXT:    movk w9, #37449, lsl #16
-; CHECK-SD-NEXT:    mul x8, x8, x9
-; CHECK-SD-NEXT:    lsr w9, w0, #31
-; CHECK-SD-NEXT:    add x8, x9, x8, asr #34
-; CHECK-SD-NEXT:    sub w8, w8, w8, lsl #3
-; CHECK-SD-NEXT:    add w0, w0, w8
-; CHECK-SD-NEXT:    ret
-;
-; CHECK-GI-LABEL: si32_7:
-; CHECK-GI:       // %bb.0: // %entry
-; CHECK-GI-NEXT:    mov w8, #9363 // =0x2493
-; CHECK-GI-NEXT:    // kill: def $w0 killed $w0 def $x0
-; CHECK-GI-NEXT:    movk w8, #37449, lsl #16
-; CHECK-GI-NEXT:    smull x8, w0, w8
-; CHECK-GI-NEXT:    add x8, x0, x8, asr #32
-; CHECK-GI-NEXT:    asr w8, w8, #2
-; CHECK-GI-NEXT:    add w8, w8, w8, lsr #31
-; CHECK-GI-NEXT:    sub w8, w8, w8, lsl #3
-; CHECK-GI-NEXT:    add w0, w0, w8
-; CHECK-GI-NEXT:    ret
+; CHECK-LABEL: si32_7:
+; CHECK:       // %bb.0: // %entry
+; CHECK-NEXT:    // kill: def $w0 killed $w0 def $x0
+; CHECK-NEXT:    sxtw x8, w0
+; CHECK-NEXT:    mov w9, #9363 // =0x2493
+; CHECK-NEXT:    movk w9, #37449, lsl #16
+; CHECK-NEXT:    mul x8, x8, x9
+; CHECK-NEXT:    lsr w9, w0, #31
+; CHECK-NEXT:    add x8, x9, x8, asr #34
+; CHECK-NEXT:    sub w8, w8, w8, lsl #3
+; CHECK-NEXT:    add w0, w0, w8
+; CHECK-NEXT:    ret
 entry:
   %s = srem i32 %a, 7
   ret i32 %s
