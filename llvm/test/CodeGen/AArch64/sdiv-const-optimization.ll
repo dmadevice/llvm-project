@@ -202,7 +202,7 @@ define i32 @sdiv_by_1000(i32 %x) nounwind {
   ret i32 %div
 }
 
-; Power-of-two and negative divisors are not widened.
+; Power-of-two divisors are not widened.
 
 define i32 @sdiv_by_8(i32 %x) nounwind {
 ; CHECK-LABEL: sdiv_by_8:
@@ -216,6 +216,9 @@ define i32 @sdiv_by_8(i32 %x) nounwind {
   ret i32 %div
 }
 
+; Negative divisors whose magic is positive (requires subtracting the
+; numerator).
+
 define i32 @sdiv_by_minus_7(i32 %x) nounwind {
 ; CHECK-LABEL: sdiv_by_minus_7:
 ; CHECK:       // %bb.0:
@@ -228,6 +231,122 @@ define i32 @sdiv_by_minus_7(i32 %x) nounwind {
 ; CHECK-NEXT:    add w0, w9, w8, lsr #31
 ; CHECK-NEXT:    ret
   %div = sdiv i32 %x, -7
+  ret i32 %div
+}
+
+define i32 @sdiv_by_minus_3(i32 %x) nounwind {
+; CHECK-LABEL: sdiv_by_minus_3:
+; CHECK:       // %bb.0:
+; CHECK-NEXT:    mov w8, #1431655765 // =0x55555555
+; CHECK-NEXT:    smull x8, w0, w8
+; CHECK-NEXT:    lsr x8, x8, #32
+; CHECK-NEXT:    sub w8, w8, w0
+; CHECK-NEXT:    asr w9, w8, #1
+; CHECK-NEXT:    add w0, w9, w8, lsr #31
+; CHECK-NEXT:    ret
+  %div = sdiv i32 %x, -3
+  ret i32 %div
+}
+
+define i32 @sdiv_by_minus_86400(i32 %x) nounwind {
+; CHECK-LABEL: sdiv_by_minus_86400:
+; CHECK:       // %bb.0:
+; CHECK-NEXT:    mov w8, #47865 // =0xbaf9
+; CHECK-NEXT:    movk w8, #15825, lsl #16
+; CHECK-NEXT:    smull x8, w0, w8
+; CHECK-NEXT:    lsr x8, x8, #32
+; CHECK-NEXT:    sub w8, w8, w0
+; CHECK-NEXT:    asr w9, w8, #16
+; CHECK-NEXT:    add w0, w9, w8, lsr #31
+; CHECK-NEXT:    ret
+  %div = sdiv i32 %x, -86400
+  ret i32 %div
+}
+
+define i32 @srem_by_minus_60(i32 %x) nounwind {
+; CHECK-LABEL: srem_by_minus_60:
+; CHECK:       // %bb.0:
+; CHECK-NEXT:    mov w8, #2004318071 // =0x77777777
+; CHECK-NEXT:    smull x8, w0, w8
+; CHECK-NEXT:    lsr x8, x8, #32
+; CHECK-NEXT:    sub w8, w8, w0
+; CHECK-NEXT:    asr w9, w8, #5
+; CHECK-NEXT:    add w8, w9, w8, lsr #31
+; CHECK-NEXT:    mov w9, #-60 // =0xffffffc4
+; CHECK-NEXT:    msub w0, w8, w9, w0
+; CHECK-NEXT:    ret
+  %rem = srem i32 %x, -60
+  ret i32 %rem
+}
+
+define i16 @sdiv_i16_by_minus_60(i16 %x) nounwind {
+; CHECK-LABEL: sdiv_i16_by_minus_60:
+; CHECK:       // %bb.0:
+; CHECK-NEXT:    sxth w8, w0
+; CHECK-NEXT:    mov w9, #30583 // =0x7777
+; CHECK-NEXT:    mul w8, w8, w9
+; CHECK-NEXT:    lsr w8, w8, #16
+; CHECK-NEXT:    sub w8, w8, w0
+; CHECK-NEXT:    sbfx w9, w8, #5, #11
+; CHECK-NEXT:    and w8, w8, #0x8000
+; CHECK-NEXT:    add w0, w9, w8, lsr #15
+; CHECK-NEXT:    ret
+  %div = sdiv i16 %x, -60
+  ret i16 %div
+}
+
+define i8 @sdiv_i8_by_minus_7(i8 %x) nounwind {
+; CHECK-LABEL: sdiv_i8_by_minus_7:
+; CHECK:       // %bb.0:
+; CHECK-NEXT:    sxtb w8, w0
+; CHECK-NEXT:    mov w9, #109 // =0x6d
+; CHECK-NEXT:    mul w8, w8, w9
+; CHECK-NEXT:    lsr w8, w8, #8
+; CHECK-NEXT:    sub w8, w8, w0
+; CHECK-NEXT:    sbfx w9, w8, #2, #6
+; CHECK-NEXT:    and w8, w8, #0x80
+; CHECK-NEXT:    add w0, w9, w8, lsr #7
+; CHECK-NEXT:    ret
+  %div = sdiv i8 %x, -7
+  ret i8 %div
+}
+
+; Negative divisors whose magic is negative (no fixup) and powers of two are
+; not widened.
+
+define i32 @sdiv_by_minus_10(i32 %x) nounwind {
+; CHECK-LABEL: sdiv_by_minus_10:
+; CHECK:       // %bb.0:
+; CHECK-NEXT:    mov w8, #-1717986919 // =0x99999999
+; CHECK-NEXT:    smull x8, w0, w8
+; CHECK-NEXT:    asr x9, x8, #34
+; CHECK-NEXT:    add x0, x9, x8, lsr #63
+; CHECK-NEXT:    // kill: def $w0 killed $w0 killed $x0
+; CHECK-NEXT:    ret
+  %div = sdiv i32 %x, -10
+  ret i32 %div
+}
+
+define i32 @sdiv_by_minus_8(i32 %x) nounwind {
+; CHECK-LABEL: sdiv_by_minus_8:
+; CHECK:       // %bb.0:
+; CHECK-NEXT:    add w8, w0, #7
+; CHECK-NEXT:    cmp w0, #0
+; CHECK-NEXT:    csel w8, w8, w0, mi
+; CHECK-NEXT:    neg w0, w8, asr #3
+; CHECK-NEXT:    ret
+  %div = sdiv i32 %x, -8
+  ret i32 %div
+}
+
+define i32 @sdiv_by_int_min(i32 %x) nounwind {
+; CHECK-LABEL: sdiv_by_int_min:
+; CHECK:       // %bb.0:
+; CHECK-NEXT:    mov w8, #-2147483648 // =0x80000000
+; CHECK-NEXT:    cmp w0, w8
+; CHECK-NEXT:    cset w0, eq
+; CHECK-NEXT:    ret
+  %div = sdiv i32 %x, -2147483648
   ret i32 %div
 }
 
